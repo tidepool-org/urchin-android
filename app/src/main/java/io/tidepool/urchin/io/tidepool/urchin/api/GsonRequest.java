@@ -14,9 +14,7 @@ import java.util.Map;
 
 /**
  * Created by Brian King on 8/25/15.
- * https://developer.android.com/training/volley/request-custom.html
  */
-
 public class GsonRequest<T> extends Request<T> {
     private final Gson gson = new Gson();
     private final Class<T> clazz;

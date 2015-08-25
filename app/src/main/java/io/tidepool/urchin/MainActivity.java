@@ -2,13 +2,29 @@ package io.tidepool.urchin;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import io.tidepool.urchin.io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.io.tidepool.urchin.api.User;
+
 public class MainActivity extends AppCompatActivity {
+    private static final String LOG_TAG = "MainActivity";
+
+    private APIClient _apiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        _apiClient = new APIClient(this, "Production");
+
+        _apiClient.signIn("larry@dufflite.com", "larryAtDL", new APIClient.SignInListener() {
+            @Override
+            public void signInComplete(User user, Exception exception) {
+                Log.d(LOG_TAG, "signInComplete. User: " + user + " Exception: " + exception);
+            }
+        });
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
     }

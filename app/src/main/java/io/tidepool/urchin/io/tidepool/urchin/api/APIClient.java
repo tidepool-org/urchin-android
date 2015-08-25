@@ -4,8 +4,10 @@ import android.content.Context;
 import android.util.Base64;
 import android.util.Log;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Cache;
 import com.android.volley.Network;
+import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -13,7 +15,10 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.gson.Gson;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,6 +31,8 @@ import java.util.Map;
 public class APIClient {
 
     private static final String LOG_TAG = "APIClient";
+
+    private static final String HEADER_SESSION_ID = "x-tidepool-session-token";
 
     // Map of server names to base URLs
     private static final Map<String, URL> __servers;
@@ -72,6 +79,7 @@ public class APIClient {
 
         // Create the request queue using the cache and network we just created
         _requestQueue = new RequestQueue(cache, network);
+        _requestQueue.start();
     }
 
     /**
@@ -93,15 +101,16 @@ public class APIClient {
     }
 
     public static abstract class SignInListener {
-        abstract void signInComplete(User user, Exception exception);
+        public abstract void signInComplete(User user, Exception exception);
     }
 
     public Request signIn(String username, String password, final SignInListener listener) {
         // Our session ID is no longer valid. Get rid of it.
         _sessionId = null;
-        Map<String, String> headers = getHeaders();
+
+        final Map<String, String> headers = getHeaders();
         String authString = username + ":" + password;
-        String base64string = Base64.encodeToString(authString.getBytes(), 0);
+        String base64string = Base64.encodeToString(authString.getBytes(), Base64.NO_WRAP);
         headers.put("Authorization", "Basic " + base64string);
 
         String url = null;
@@ -112,18 +121,45 @@ public class APIClient {
             return null;
         }
 
-        GsonRequest<User> req = new GsonRequest<>(url, User.class, headers, new Response.Listener<User>() {
+        StringRequest req = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+            // Listener overrides
             @Override
-            public void onResponse(User response) {
-                listener.signInComplete(response, null);
+            public void onResponse(String response) {
+                Log.d(LOG_TAG, "Login success: " + response);
+                User user = new Gson().fromJson(response, User.class);
+                Exception e = null;
+                if ( _sessionId == null ) {
+                    // No session ID returned in the headers!
+                    e = new Exception("No session ID returned in headers");
+                }
+                listener.signInComplete(user, e);
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                Log.d(LOG_TAG, "Login failure: " + error);
                 listener.signInComplete(null, error);
             }
-        });
+        }) {
+            // Request overrides
+            @Override
+            protected Response<String> parseNetworkResponse(NetworkResponse response) {
+                String sessionId = response.headers.get(HEADER_SESSION_ID);
+                if ( sessionId != null ) {
+                    Log.d(LOG_TAG, "Found session ID: " + sessionId);
+                    _sessionId = sessionId;
+                }
+                return super.parseNetworkResponse(response);
+            }
 
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return headers;
+            }
+        };
+
+        // Tag the request with our context so they all can be removed if the activity goes away
+        req.setTag(_context);
         _requestQueue.add(req);
         return req;
     }
@@ -136,9 +172,8 @@ public class APIClient {
     protected Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<>();
         if ( _sessionId != null ) {
-            headers.put("x-tidepool-session-id", _sessionId);
+            headers.put(HEADER_SESSION_ID, _sessionId);
         }
         return headers;
     }
-
 }
