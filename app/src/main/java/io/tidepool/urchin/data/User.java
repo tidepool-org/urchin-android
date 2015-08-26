@@ -17,8 +17,6 @@ public class User extends RealmObject {
 
     private RealmList<RealmString> viewableUserIds;
 
-    private RealmList<Message> messages;
-
     public String getUserid() {
         return userid;
     }
@@ -59,11 +57,4 @@ public class User extends RealmObject {
     }
     public Profile getProfile() { return profile;}
     public void setProfile(Profile profile) { this.profile = profile; }
-    public RealmList<Message> getMessages() {
-        return messages;
-    }
-
-    public void setMessages(RealmList<Message> messages) {
-        this.messages = messages;
-    }
 }

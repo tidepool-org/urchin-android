@@ -3,15 +3,16 @@ package io.tidepool.urchin.data;
 import java.util.Date;
 
 import io.realm.RealmObject;
+import io.realm.annotations.PrimaryKey;
 
 /**
  * Created by Brian King on 8/26/15.
  */
-public class Message extends RealmObject {
+public class Note extends RealmObject {
     private Date createdtime;
     private String groupid;
     private String guid;
-    private String id;
+    @PrimaryKey private String id;
     private String messagetext;
     private String parentmessage;
     private Date timestamp;

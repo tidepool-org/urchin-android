@@ -8,9 +8,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.util.Calendar;
+import java.util.Date;
+
 import io.realm.Realm;
 import io.realm.RealmList;
 import io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.RealmString;
 import io.tidepool.urchin.data.User;
@@ -84,6 +88,11 @@ public class MainActivity extends AppCompatActivity {
      * Gets information about the current user
      */
     private void updateUser() {
+        final Date to = new Date();
+        Calendar c = Calendar.getInstance();
+        c.setTime(to);
+        c.add(Calendar.MONTH, -3);
+        final Date from = c.getTime();
         _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
             @Override
             public void fetchComplete(RealmList<RealmString> userIds, Exception error) {
@@ -93,6 +102,12 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void profileReceived(Profile profile, Exception error) {
                             Log.d(LOG_TAG, "Profile: " + profile);
+                        }
+                    });
+                    _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
+                        @Override
+                        public void notesReceived(RealmList<Note> notes, Exception error) {
+                            Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
                         }
                     });
                 }

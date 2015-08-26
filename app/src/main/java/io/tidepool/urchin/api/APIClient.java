@@ -25,21 +25,29 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 import io.realm.Realm;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.RealmResults;
+import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.RealmString;
 import io.tidepool.urchin.data.Session;
@@ -55,6 +63,8 @@ public class APIClient {
     public static final String STAGING = "Staging";
 
     private static final String LOG_TAG = "APIClient";
+
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSZ";
 
     // Header label for the session token
     private static final String HEADER_SESSION_ID = "x-tidepool-session-token";
@@ -268,6 +278,9 @@ public class APIClient {
      * @return a GSON instance to use
      */
     public static Gson getGson() {
+        return getGson(DEFAULT_DATE_FORMAT);
+    }
+    public static Gson getGson(String dateFormat) {
         // Make a custom Gson instance, with a custom TypeAdapter for each wrapper object.
         // In this instance we only have RealmList<RealmString> as a a wrapper for RealmList<String>
         Type token = new TypeToken<RealmList<RealmString>>(){}.getType();
@@ -301,6 +314,7 @@ public class APIClient {
                         return list;
                     }
                 })
+                .setDateFormat(dateFormat)
                 .create();
 
         return gson;
@@ -385,8 +399,11 @@ public class APIClient {
                 realm.beginTransaction();
                 Profile profile = realm.copyToRealm(response);
                 // Create a user with this profile and add / update it
-                User user = realm.createObject(User.class);
-                user.setUserid(userId);
+                User user = realm.where(User.class).equalTo("userid", userId).findFirst();
+                if ( user == null ) {
+                    user = realm.createObject(User.class);
+                    user.setUserid(userId);
+                }
                 user.setProfile(profile);
                 realm.commitTransaction();
 
@@ -399,6 +416,71 @@ public class APIClient {
                 listener.profileReceived(null, error);
             }
         });
+
+        _requestQueue.add(req);
+        return req;
+    }
+
+    public static abstract class NotesListener {
+        public abstract void notesReceived(RealmList<Note> notes, Exception error);
+    }
+    public Request getNotes(final String userId, final Date fromDate, final Date toDate, final NotesListener listener) {
+        String url = null;
+        try {
+            DateFormat df = new SimpleDateFormat(DEFAULT_DATE_FORMAT, Locale.US);
+            String extension = "/message/notes/" + userId + "?starttime=" +
+                    URLEncoder.encode(df.format(fromDate), "utf-8") +
+                    "&endtime=" +
+                    URLEncoder.encode(df.format(toDate), "utf-8");
+
+            url = new URL(getBaseURL(), extension).toString();
+        } catch (MalformedURLException e) {
+            listener.notesReceived(null, e);
+            return null;
+        } catch (UnsupportedEncodingException e) {
+            listener.notesReceived(null, e);
+            return null;
+        }
+
+        StringRequest req = new StringRequest(url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String json) {
+                // Returned JSON is an object array called "messages"
+                Realm realm = Realm.getInstance(_context);
+                RealmList<Note> noteList = new RealmList<>();
+                realm.beginTransaction();
+                // Odd date format in the messages
+                Gson gson = getGson("yyyy-MM-dd'T'HH:mm:ssZ");
+                try {
+                    JSONObject obj = new JSONObject(json);
+                    JSONArray messages = obj.getJSONArray("messages");
+
+                    for ( int i = 0; i < messages.length(); i++ ) {
+                        String msgJson = messages.getString(i);
+                        Note note = gson.fromJson(msgJson, Note.class);
+                        note.setUserid(userId);
+                        note = realm.copyToRealmOrUpdate(note);
+                        noteList.add(note);
+                    }
+                } catch (JSONException e) {
+                    realm.cancelTransaction();
+                    listener.notesReceived(null, e);
+                }
+
+                realm.commitTransaction();
+                listener.notesReceived(noteList, null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.notesReceived(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
 
         _requestQueue.add(req);
         return req;
