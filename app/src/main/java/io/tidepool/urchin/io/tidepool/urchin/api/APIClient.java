@@ -1,6 +1,7 @@
 package io.tidepool.urchin.io.tidepool.urchin.api;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Base64;
 import android.util.Log;
 
@@ -18,9 +19,15 @@ import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.StringRequest;
 import com.google.gson.Gson;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,6 +50,9 @@ public class APIClient {
     // Key into the shared preferences to store our session ID (so we don't need to log in each time)
     private static final String KEY_SESSION_ID = "sessionID";
 
+    // Key into the shared preferences to store our user JSON (so we don't need to log in each time)
+    private static final String KEY_USER_JSON = "UserJSON";
+
     // Map of server names to base URLs
     private static final Map<String, URL> __servers;
 
@@ -57,6 +67,9 @@ public class APIClient {
 
     // Session ID, set after login
     private String _sessionId;
+
+    // User for the session, set after login
+    private User _user;
 
     // Static initialization
     static {
@@ -80,6 +93,15 @@ public class APIClient {
     public APIClient(Context context, String server) {
         _context = context;
         _baseURL = __servers.get(server);
+
+        // Load the saved user / session, if present
+        SharedPreferences prefs = _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE);
+        String json = prefs.getString(KEY_USER_JSON, null);
+        if ( json != null ) {
+            // User is present. Create the user object and get the session ID.
+            _user = new Gson().fromJson(json, User.class);
+            _sessionId = prefs.getString(KEY_SESSION_ID, null);
+        }
 
         // Set up the disk cache for caching responses
         Cache cache = new DiskBasedCache(context.getCacheDir(), 1024*1024);
@@ -108,6 +130,26 @@ public class APIClient {
         } else {
             _baseURL = url;
         }
+    }
+
+    /**
+     * Sets the current user.
+     *
+     * @param user User to set
+     */
+    public void setUser(User user) {
+        _user = user;
+        String json = new Gson().toJson(user);
+        _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE).edit()
+                .putString(KEY_USER_JSON, json).apply();
+    }
+
+    /**
+     * Returns the current user. Only valid if authenticated.
+     * @return the current user
+     */
+    public User getUser() {
+        return _user;
     }
 
     /**
@@ -186,13 +228,13 @@ public class APIClient {
             @Override
             public void onResponse(String response) {
                 Log.d(LOG_TAG, "Login success: " + response);
-                User user = new Gson().fromJson(response, User.class);
+                _user = new Gson().fromJson(response, User.class);
                 Exception e = null;
                 if ( _sessionId == null ) {
                     // No session ID returned in the headers!
                     e = new Exception("No session ID returned in headers");
                 }
-                listener.signInComplete(user, e);
+                listener.signInComplete(_user, e);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -220,6 +262,83 @@ public class APIClient {
 
         // Tag the request with our context so they all can be removed if the activity goes away
         req.setTag(_context);
+        _requestQueue.add(req);
+        return req;
+    }
+
+    public static abstract class ViewableUserIdsListener {
+        public abstract void fetchComplete(List<String> userIds, Exception error);
+    }
+    public Request getViewableUserIds(final ViewableUserIdsListener listener) {
+        // Build the URL for login
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/access/groups/" + _user.getUserId()).toString();
+        } catch (MalformedURLException e) {
+            listener.fetchComplete(null, e);
+            return null;
+        }
+
+        StringRequest req = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                try {
+                    JSONObject jsonObject = new JSONObject(response);
+                    List<String> userIds = new ArrayList<>();
+                    Iterator iter = jsonObject.keys();
+                    while ( iter.hasNext() ) {
+                        String userId = (String)iter.next();
+                        if ( !userId.equals(_user.getUserId()))
+                        userIds.add(userId);
+                    }
+
+                    listener.fetchComplete(userIds, null);
+                } catch (JSONException e) {
+                    listener.fetchComplete(null, e);
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.fetchComplete(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
+
+        _requestQueue.add(req);
+        return req;
+    }
+
+    public static abstract class ProfileListener {
+        public abstract void profileReceived(Profile profile, Exception error);
+    }
+
+    public Request getProfileForUserId(String userId, final ProfileListener listener) {
+        // Build the URL for getProfile
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/metadata/" + userId + "/profile").toString();
+        } catch (MalformedURLException e) {
+            listener.profileReceived(null, e);
+            return null;
+        }
+
+        GsonRequest<Profile> req = new GsonRequest<>(url, Profile.class, getHeaders(), new Response.Listener<Profile>() {
+            @Override
+            public void onResponse(Profile response) {
+                listener.profileReceived(response, null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.profileReceived(null, error);
+            }
+        });
+
         _requestQueue.add(req);
         return req;
     }

@@ -8,7 +8,12 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.google.gson.Gson;
+
+import java.util.List;
+
 import io.tidepool.urchin.io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.io.tidepool.urchin.api.Profile;
 import io.tidepool.urchin.io.tidepool.urchin.api.User;
 
 public class MainActivity extends AppCompatActivity {
@@ -21,16 +26,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, APIClient.PRODUCTION);
         if ( _apiClient.getSessionId() == null ) {
             // We need to sign in
             Intent loginIntent = new Intent(this, LoginActivity.class);
             startActivityForResult(loginIntent, REQ_LOGIN);
+        } else {
+            updateUser();
         }
-
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
     }
 
     @Override
@@ -59,16 +66,39 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch ( requestCode ) {
             case REQ_LOGIN:
-                // Get the auth token from the intent
+                // Sent from the LoginActivity.
+                // Get the auth token and user from the intent
                 if ( resultCode == Activity.RESULT_OK ) {
                     String token = data.getStringExtra(LoginActivity.SESSION_ID);
                     String json = data.getStringExtra(LoginActivity.USER_JSON);
                     Log.d(LOG_TAG, "Sign-In success: " + json);
                     if ( token != null ) {
                         _apiClient.setSessionId(token);
+                        _apiClient.setUser(new Gson().fromJson(json, User.class));
+                        updateUser();
                     }
                 }
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    /**
+     * Gets information about the current user
+     */
+    private void updateUser() {
+        _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
+            @Override
+            public void fetchComplete(List<String> userIds, Exception error) {
+                Log.d(LOG_TAG, "Viewable IDs: " + userIds + "Error: " + error);
+                for ( String userId : userIds ) {
+                    _apiClient.getProfileForUserId(userId, new APIClient.ProfileListener() {
+                        @Override
+                        public void profileReceived(Profile profile, Exception error) {
+                            Log.d(LOG_TAG, "Profile: " + profile);
+                        }
+                    });
+                }
+            }
+        });
     }
 }

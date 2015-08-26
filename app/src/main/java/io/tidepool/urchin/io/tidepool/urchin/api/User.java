@@ -8,4 +8,20 @@ public class User {
     private String username;
     private String[] emails;
     private String fullName;
+
+    public String getUserId() {
+        return userid;
+    }
+
+    public String getUserName() {
+        return username;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String[] getEmails() {
+        return emails;
+    }
 }
