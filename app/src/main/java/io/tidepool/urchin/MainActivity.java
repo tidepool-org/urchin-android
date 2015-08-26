@@ -8,16 +8,12 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.google.gson.Gson;
-
-import java.util.List;
-
 import io.realm.Realm;
 import io.realm.RealmList;
-import io.tidepool.urchin.io.tidepool.urchin.api.APIClient;
-import io.tidepool.urchin.io.tidepool.urchin.api.Profile;
-import io.tidepool.urchin.io.tidepool.urchin.api.RealmString;
-import io.tidepool.urchin.io.tidepool.urchin.api.User;
+import io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.data.Profile;
+import io.tidepool.urchin.data.RealmString;
+import io.tidepool.urchin.data.User;
 
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "MainActivity";

@@ -1,4 +1,4 @@
-package io.tidepool.urchin.io.tidepool.urchin.api;
+package io.tidepool.urchin.api;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.NetworkResponse;

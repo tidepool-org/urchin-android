@@ -1,4 +1,4 @@
-package io.tidepool.urchin.io.tidepool.urchin.api;
+package io.tidepool.urchin.data;
 
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;

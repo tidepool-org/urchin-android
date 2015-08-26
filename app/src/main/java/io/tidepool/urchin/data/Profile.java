@@ -1,6 +1,4 @@
-package io.tidepool.urchin.io.tidepool.urchin.api;
-
-import java.util.Date;
+package io.tidepool.urchin.data;
 
 import io.realm.RealmObject;
 

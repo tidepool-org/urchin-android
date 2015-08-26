@@ -26,13 +26,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.gson.Gson;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import io.tidepool.urchin.io.tidepool.urchin.api.APIClient;
-import io.tidepool.urchin.io.tidepool.urchin.api.User;
+import io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.data.User;
 
 /**
  * A login screen that offers login via email/password.

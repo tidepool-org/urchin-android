@@ -1,7 +1,6 @@
-package io.tidepool.urchin.io.tidepool.urchin.api;
+package io.tidepool.urchin.api;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.util.Base64;
 import android.util.Log;
 
@@ -33,16 +32,18 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 import io.realm.Realm;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.RealmResults;
+import io.tidepool.urchin.data.Profile;
+import io.tidepool.urchin.data.RealmString;
+import io.tidepool.urchin.data.Session;
+import io.tidepool.urchin.data.User;
 
 /**
  * Created by Brian King on 8/25/15.
