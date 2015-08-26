@@ -6,31 +6,26 @@ import com.android.volley.ParseError;
 import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.toolbox.HttpHeaderParser;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
+import io.realm.Realm;
+import io.realm.RealmObject;
+
 /**
- * Created by Brian King on 8/25/15.
+ * Created by Brian King on 8/26/15.
  */
-public class GsonRequest<T> extends Request<T> {
-    private final Gson gson = APIClient.getGson();
+public class UrchinRequest<T extends RealmObject> extends Request<T> {
+    private final Realm realm;
     private final Class<T> clazz;
     private final Map<String, String> headers;
     private final Response.Listener<T> listener;
 
-    /**
-     * Make a GET request and return a parsed object from JSON.
-     *
-     * @param url URL of the request to make
-     * @param clazz Relevant class object, for Gson's reflection
-     * @param headers Map of request headers
-     */
-    public GsonRequest(String url, Class<T> clazz, Map<String, String> headers,
-                       Response.Listener<T> listener, Response.ErrorListener errorListener) {
-        super(Method.GET, url, errorListener);
+    public UrchinRequest(Realm realm, int method, String url, Class<T> clazz, Map<String, String> headers,
+                         Response.Listener<T> listener, Response.ErrorListener errorListener) {
+        super(method, url, errorListener);
+        this.realm = realm;
         this.clazz = clazz;
         this.headers = headers;
         this.listener = listener;
@@ -49,15 +44,14 @@ public class GsonRequest<T> extends Request<T> {
     @Override
     protected Response<T> parseNetworkResponse(NetworkResponse response) {
         try {
-            String json = new String(
-                    response.data,
+            String json = new String(response.data,
                     HttpHeaderParser.parseCharset(response.headers));
-            return Response.success(
-                    gson.fromJson(json, clazz),
+            realm.beginTransaction();
+            Response<T> r = Response.success(realm.createOrUpdateObjectFromJson(this.clazz, json),
                     HttpHeaderParser.parseCacheHeaders(response));
+            realm.commitTransaction();
+            return r;
         } catch (UnsupportedEncodingException e) {
-            return Response.error(new ParseError(e));
-        } catch (JsonSyntaxException e) {
             return Response.error(new ParseError(e));
         }
     }

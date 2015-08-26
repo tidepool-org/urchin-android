@@ -12,8 +12,11 @@ import com.google.gson.Gson;
 
 import java.util.List;
 
+import io.realm.Realm;
+import io.realm.RealmList;
 import io.tidepool.urchin.io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.io.tidepool.urchin.api.Profile;
+import io.tidepool.urchin.io.tidepool.urchin.api.RealmString;
 import io.tidepool.urchin.io.tidepool.urchin.api.User;
 
 public class MainActivity extends AppCompatActivity {
@@ -29,9 +32,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Realm realm = Realm.getInstance(this);
+        Log.d(LOG_TAG, "Realm path: " + realm.getPath());
+
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, APIClient.PRODUCTION);
-        if ( _apiClient.getSessionId() == null ) {
+        String sessionId = _apiClient.getSessionId();
+        User user = _apiClient.getUser();
+        if ( sessionId == null || user == null ) {
             // We need to sign in
             Intent loginIntent = new Intent(this, LoginActivity.class);
             startActivityForResult(loginIntent, REQ_LOGIN);
@@ -69,14 +77,8 @@ public class MainActivity extends AppCompatActivity {
                 // Sent from the LoginActivity.
                 // Get the auth token and user from the intent
                 if ( resultCode == Activity.RESULT_OK ) {
-                    String token = data.getStringExtra(LoginActivity.SESSION_ID);
-                    String json = data.getStringExtra(LoginActivity.USER_JSON);
-                    Log.d(LOG_TAG, "Sign-In success: " + json);
-                    if ( token != null ) {
-                        _apiClient.setSessionId(token);
-                        _apiClient.setUser(new Gson().fromJson(json, User.class));
-                        updateUser();
-                    }
+                    Log.d(LOG_TAG, "Sign-In success");
+                    updateUser();
                 }
         }
         super.onActivityResult(requestCode, resultCode, data);
@@ -88,10 +90,10 @@ public class MainActivity extends AppCompatActivity {
     private void updateUser() {
         _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
             @Override
-            public void fetchComplete(List<String> userIds, Exception error) {
+            public void fetchComplete(RealmList<RealmString> userIds, Exception error) {
                 Log.d(LOG_TAG, "Viewable IDs: " + userIds + "Error: " + error);
-                for ( String userId : userIds ) {
-                    _apiClient.getProfileForUserId(userId, new APIClient.ProfileListener() {
+                for ( RealmString userId : userIds ) {
+                    _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
                         @Override
                         public void profileReceived(Profile profile, Exception error) {
                             Log.d(LOG_TAG, "Profile: " + profile);

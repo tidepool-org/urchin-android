@@ -17,11 +17,20 @@ import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.StringRequest;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -29,6 +38,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import io.realm.Realm;
+import io.realm.RealmList;
+import io.realm.RealmObject;
+import io.realm.RealmResults;
 
 /**
  * Created by Brian King on 8/25/15.
@@ -47,12 +61,6 @@ public class APIClient {
     // Key into the shared preferences database for our own preferences
     private static final String PREFS_KEY = "APIClient";
 
-    // Key into the shared preferences to store our session ID (so we don't need to log in each time)
-    private static final String KEY_SESSION_ID = "sessionID";
-
-    // Key into the shared preferences to store our user JSON (so we don't need to log in each time)
-    private static final String KEY_USER_JSON = "UserJSON";
-
     // Map of server names to base URLs
     private static final Map<String, URL> __servers;
 
@@ -64,12 +72,6 @@ public class APIClient {
 
     // Context used to create us
     private Context _context;
-
-    // Session ID, set after login
-    private String _sessionId;
-
-    // User for the session, set after login
-    private User _user;
 
     // Static initialization
     static {
@@ -93,15 +95,6 @@ public class APIClient {
     public APIClient(Context context, String server) {
         _context = context;
         _baseURL = __servers.get(server);
-
-        // Load the saved user / session, if present
-        SharedPreferences prefs = _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE);
-        String json = prefs.getString(KEY_USER_JSON, null);
-        if ( json != null ) {
-            // User is present. Create the user object and get the session ID.
-            _user = new Gson().fromJson(json, User.class);
-            _sessionId = prefs.getString(KEY_SESSION_ID, null);
-        }
 
         // Set up the disk cache for caching responses
         Cache cache = new DiskBasedCache(context.getCacheDir(), 1024*1024);
@@ -133,23 +126,18 @@ public class APIClient {
     }
 
     /**
-     * Sets the current user.
-     *
-     * @param user User to set
-     */
-    public void setUser(User user) {
-        _user = user;
-        String json = new Gson().toJson(user);
-        _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE).edit()
-                .putString(KEY_USER_JSON, json).apply();
-    }
-
-    /**
      * Returns the current user. Only valid if authenticated.
      * @return the current user
      */
     public User getUser() {
-        return _user;
+        Realm realm = Realm.getInstance(_context);
+        RealmResults<Session> results = realm.where(Session.class)
+                .findAll();
+        if ( results.size() == 0 ) {
+            return null;
+        }
+
+        return results.first().getUser();
     }
 
     /**
@@ -157,28 +145,15 @@ public class APIClient {
      * @return the session ID, or null if not authenticated
      */
     public String getSessionId() {
-        return _sessionId;
-    }
-
-    /**
-     * Sets the session ID to be used for all subsequent requests. Setting the session ID will
-     * cancel any outstanding requests.
-     *
-     * @param sessionId new session ID to use
-     */
-    public void setSessionId(String sessionId) {
-        _requestQueue.cancelAll(_context);
-
-        _sessionId = sessionId;
-
-        // Save this to the shared preferences
-        if ( sessionId == null ) {
-            _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE).edit()
-                    .remove(KEY_SESSION_ID);
-        } else {
-            _context.getSharedPreferences(PREFS_KEY, Context.MODE_PRIVATE).edit()
-                    .putString(KEY_SESSION_ID, sessionId).apply();
+        Realm realm = Realm.getInstance(_context);
+        RealmResults<Session> results = realm.where(Session.class)
+                .findAll();
+        if ( results.size() == 0 ) {
+            return null;
         }
+
+        Session session = results.first();
+        return session.getSessionId();
     }
 
     public static abstract class SignInListener {
@@ -203,8 +178,12 @@ public class APIClient {
      * @return a Request object, which may be canceled.
      */
     public Request signIn(String username, String password, final SignInListener listener) {
-        // Our session ID is no longer valid. Get rid of it.
-        _sessionId = null;
+        // Our session is no longer valid. Get rid of it.
+        Realm realm = Realm.getInstance(_context);
+        RealmResults<Session> sessions = realm.allObjects(Session.class);
+        for ( Session s : sessions ) {
+            s.removeFromRealm();
+        }
 
         // Create the authorization header with base64-encoded username:password
         final Map<String, String> headers = getHeaders();
@@ -224,17 +203,28 @@ public class APIClient {
         // Create the request. We want to set and get the headers, so need to override
         // parseNetworkResponse and getHeaders in the request object.
         StringRequest req = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+
             // Listener overrides
             @Override
             public void onResponse(String response) {
+                Realm realm = Realm.getInstance(_context);
                 Log.d(LOG_TAG, "Login success: " + response);
-                _user = new Gson().fromJson(response, User.class);
-                Exception e = null;
-                if ( _sessionId == null ) {
-                    // No session ID returned in the headers!
-                    e = new Exception("No session ID returned in headers");
+                RealmResults<Session> sessions = realm.where(Session.class).findAll();
+                if ( sessions.size() == 0 ) {
+                    // No session ID found
+                    listener.signInComplete(null, new Exception("No session ID returned in headers"));
+                    return;
                 }
-                listener.signInComplete(_user, e);
+
+                Session s = sessions.first();
+
+                Gson gson = getGson();
+                User user = gson.fromJson(response, User.class);
+                realm.beginTransaction();
+                User copiedUser = realm.copyToRealm(user);
+                s.setUser(copiedUser);
+                realm.commitTransaction();
+                listener.signInComplete(user, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -244,12 +234,18 @@ public class APIClient {
             }
         }) {
             // Request overrides
+
             @Override
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
                 if ( sessionId != null ) {
-                    Log.d(LOG_TAG, "Found session ID: " + sessionId);
-                    _sessionId = sessionId;
+                    Realm realm = Realm.getInstance(_context);
+                    // Create the session in the database
+                    realm.beginTransaction();
+                    Session s = realm.createObject(Session.class);
+                    s.setSessionId(sessionId);
+                    s.setKey(Session.SESSION_KEY);
+                    realm.commitTransaction();
                 }
                 return super.parseNetworkResponse(response);
             }
@@ -266,14 +262,58 @@ public class APIClient {
         return req;
     }
 
+    /**
+     * Returns a GSON instance used for working with Realm and GSON together
+     * @return a GSON instance to use
+     */
+    public static Gson getGson() {
+        // Make a custom Gson instance, with a custom TypeAdapter for each wrapper object.
+        // In this instance we only have RealmList<RealmString> as a a wrapper for RealmList<String>
+        Type token = new TypeToken<RealmList<RealmString>>(){}.getType();
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(new ExclusionStrategy() {
+                    @Override
+                    public boolean shouldSkipField(FieldAttributes f) {
+                        return f.getDeclaringClass().equals(RealmObject.class);
+                    }
+
+                    @Override
+                    public boolean shouldSkipClass(Class<?> clazz) {
+                        return false;
+                    }
+                })
+                .registerTypeAdapter(token, new TypeAdapter<RealmList<RealmString>>() {
+
+                    @Override
+                    public void write(JsonWriter out, RealmList<RealmString> value) throws IOException {
+                        // Ignore
+                    }
+
+                    @Override
+                    public RealmList<RealmString> read(JsonReader in) throws IOException {
+                        RealmList<RealmString> list = new RealmList<RealmString>();
+                        in.beginArray();
+                        while (in.hasNext()) {
+                            list.add(new RealmString(in.nextString()));
+                        }
+                        in.endArray();
+                        return list;
+                    }
+                })
+                .create();
+
+        return gson;
+    }
+
+
     public static abstract class ViewableUserIdsListener {
-        public abstract void fetchComplete(List<String> userIds, Exception error);
+        public abstract void fetchComplete(RealmList<RealmString> userIds, Exception error);
     }
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
         // Build the URL for login
         String url = null;
         try {
-            url = new URL(getBaseURL(), "/access/groups/" + _user.getUserId()).toString();
+            url = new URL(getBaseURL(), "/access/groups/" + getUser().getUserid()).toString();
         } catch (MalformedURLException e) {
             listener.fetchComplete(null, e);
             return null;
@@ -284,13 +324,22 @@ public class APIClient {
             public void onResponse(String response) {
                 try {
                     JSONObject jsonObject = new JSONObject(response);
-                    List<String> userIds = new ArrayList<>();
+                    RealmList<RealmString> userIds = new RealmList<>();
                     Iterator iter = jsonObject.keys();
+
+                    Realm realm = Realm.getInstance(_context);
+                    realm.beginTransaction();
+
                     while ( iter.hasNext() ) {
-                        String userId = (String)iter.next();
-                        if ( !userId.equals(_user.getUserId()))
-                        userIds.add(userId);
+                        String viewableId = (String)iter.next();
+                        userIds.add(realm.copyToRealm(new RealmString(viewableId)));
                     }
+
+                    // Put the IDs into the database
+                    User user = getUser();
+                    user.setViewableUserIds(userIds);
+
+                    realm.commitTransaction();
 
                     listener.fetchComplete(userIds, null);
                 } catch (JSONException e) {
@@ -317,7 +366,7 @@ public class APIClient {
         public abstract void profileReceived(Profile profile, Exception error);
     }
 
-    public Request getProfileForUserId(String userId, final ProfileListener listener) {
+    public Request getProfileForUserId(final String userId, final ProfileListener listener) {
         // Build the URL for getProfile
         String url = null;
         try {
@@ -330,11 +379,22 @@ public class APIClient {
         GsonRequest<Profile> req = new GsonRequest<>(url, Profile.class, getHeaders(), new Response.Listener<Profile>() {
             @Override
             public void onResponse(Profile response) {
-                listener.profileReceived(response, null);
+                Log.d(LOG_TAG, "Profile response: " + response);
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                Profile profile = realm.copyToRealm(response);
+                // Create a user with this profile and add / update it
+                User user = realm.createObject(User.class);
+                user.setUserid(userId);
+                user.setProfile(profile);
+                realm.commitTransaction();
+
+                listener.profileReceived(profile, null);
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                Log.e(LOG_TAG, "Profile error: " + error);
                 listener.profileReceived(null, error);
             }
         });
@@ -354,8 +414,9 @@ public class APIClient {
      */
     protected Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<>();
-        if ( _sessionId != null ) {
-            headers.put(HEADER_SESSION_ID, _sessionId);
+        String sessionId = getSessionId();
+        if ( sessionId != null ) {
+            headers.put(HEADER_SESSION_ID, sessionId);
         }
         return headers;
     }

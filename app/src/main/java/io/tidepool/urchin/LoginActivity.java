@@ -39,9 +39,6 @@ import io.tidepool.urchin.io.tidepool.urchin.api.User;
  */
 public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
-    public static final String SESSION_ID = "SessionID";
-    public static final String USER_JSON = "UserJSON";
-
     // UI references.
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
@@ -55,9 +52,11 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
+        mEmailView.setText("larry@dufflite.com");
         populateAutoComplete();
 
         mPasswordView = (EditText) findViewById(R.id.password);
+        mPasswordView.setText("larryAtDL");
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -138,9 +137,6 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
                         Toast.makeText(LoginActivity.this, exception.getLocalizedMessage(), Toast.LENGTH_LONG).show();
                     } else {
                         Intent resultIntent = new Intent();
-                        resultIntent.putExtra(SESSION_ID, client.getSessionId());
-                        String userJson = new Gson().toJson(user);
-                        resultIntent.putExtra(USER_JSON, userJson);
                         setResult(Activity.RESULT_OK, resultIntent);
                         finish();
                     }
