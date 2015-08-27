@@ -44,13 +44,15 @@ import java.util.Locale;
 import java.util.Map;
 
 import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.RealmResults;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
-import io.tidepool.urchin.data.RealmString;
+import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.Session;
+import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 
 /**
@@ -193,12 +195,11 @@ public class APIClient {
      * @return a Request object, which may be canceled.
      */
     public Request signIn(String username, String password, final SignInListener listener) {
-        // Our session is no longer valid. Get rid of it.
+        // Clear out the database, just in case there is anything left over
         Realm realm = Realm.getInstance(_context);
-        RealmResults<Session> sessions = realm.allObjects(Session.class);
-        for ( Session s : sessions ) {
-            s.removeFromRealm();
-        }
+        realm.beginTransaction();
+        realm.where(Session.class).findAll().clear();
+        realm.commitTransaction();
 
         // Create the authorization header with base64-encoded username:password
         final Map<String, String> headers = getHeaders();
@@ -236,7 +237,7 @@ public class APIClient {
                 Gson gson = getGson(DEFAULT_DATE_FORMAT);
                 User user = gson.fromJson(response, User.class);
                 realm.beginTransaction();
-                User copiedUser = realm.copyToRealm(user);
+                User copiedUser = realm.copyToRealmOrUpdate(user);
                 s.setUser(copiedUser);
                 realm.commitTransaction();
                 listener.signInComplete(user, null);
@@ -287,7 +288,8 @@ public class APIClient {
     public static Gson getGson(String dateFormat) {
         // Make a custom Gson instance, with a custom TypeAdapter for each wrapper object.
         // In this instance we only have RealmList<RealmString> as a a wrapper for RealmList<String>
-        Type token = new TypeToken<RealmList<RealmString>>(){}.getType();
+        Type emailToken = new TypeToken<RealmList<EmailAddress>>(){}.getType();
+        Type sharedIdToken = new TypeToken<RealmList<SharedUserId>>(){}.getType();
         Gson gson = new GsonBuilder()
                 .setExclusionStrategies(new ExclusionStrategy() {
                     @Override
@@ -300,19 +302,37 @@ public class APIClient {
                         return false;
                     }
                 })
-                .registerTypeAdapter(token, new TypeAdapter<RealmList<RealmString>>() {
+                .registerTypeAdapter(emailToken, new TypeAdapter<RealmList<EmailAddress>>() {
 
                     @Override
-                    public void write(JsonWriter out, RealmList<RealmString> value) throws IOException {
+                    public void write(JsonWriter out, RealmList<EmailAddress> value) throws IOException {
                         // Ignore
                     }
 
                     @Override
-                    public RealmList<RealmString> read(JsonReader in) throws IOException {
-                        RealmList<RealmString> list = new RealmList<RealmString>();
+                    public RealmList<EmailAddress> read(JsonReader in) throws IOException {
+                        RealmList<EmailAddress> list = new RealmList<EmailAddress>();
                         in.beginArray();
                         while (in.hasNext()) {
-                            list.add(new RealmString(in.nextString()));
+                            list.add(new EmailAddress(in.nextString()));
+                        }
+                        in.endArray();
+                        return list;
+                    }
+                })
+                .registerTypeAdapter(sharedIdToken, new TypeAdapter<RealmList<SharedUserId>>() {
+
+                    @Override
+                    public void write(JsonWriter out, RealmList<SharedUserId> value) throws IOException {
+                        // Ignore
+                    }
+
+                    @Override
+                    public RealmList<SharedUserId> read(JsonReader in) throws IOException {
+                        RealmList<SharedUserId> list = new RealmList<SharedUserId>();
+                        in.beginArray();
+                        while (in.hasNext()) {
+                            list.add(new SharedUserId(in.nextString()));
                         }
                         in.endArray();
                         return list;
@@ -324,9 +344,8 @@ public class APIClient {
         return gson;
     }
 
-
     public static abstract class ViewableUserIdsListener {
-        public abstract void fetchComplete(RealmList<RealmString> userIds, Exception error);
+        public abstract void fetchComplete(RealmList<SharedUserId> userIds, Exception error);
     }
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
         // Build the URL for login
@@ -343,20 +362,22 @@ public class APIClient {
             public void onResponse(String response) {
                 try {
                     JSONObject jsonObject = new JSONObject(response);
-                    RealmList<RealmString> userIds = new RealmList<>();
+                    RealmList<SharedUserId> userIds = new RealmList<>();
                     Iterator iter = jsonObject.keys();
 
                     Realm realm = Realm.getInstance(_context);
+                    User user = getUser();
+
                     realm.beginTransaction();
 
                     while ( iter.hasNext() ) {
                         String viewableId = (String)iter.next();
-                        userIds.add(realm.copyToRealm(new RealmString(viewableId)));
+                        userIds.add(new SharedUserId(viewableId));
                     }
 
                     // Put the IDs into the database
-                    User user = getUser();
-                    user.setViewableUserIds(userIds);
+                    user.getViewableUserIds().removeAll(user.getViewableUserIds());
+                    user.getViewableUserIds().addAll(userIds);
 
                     realm.commitTransaction();
 

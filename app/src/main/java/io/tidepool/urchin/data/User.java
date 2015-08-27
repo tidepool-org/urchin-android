@@ -11,11 +11,11 @@ public class User extends RealmObject {
     @PrimaryKey
     private String userid;
     private String username;
-    private RealmList<RealmString> emails;
+    private RealmList<EmailAddress> emails;
     private String fullName;
     private Profile profile;
 
-    private RealmList<RealmString> viewableUserIds;
+    private RealmList<SharedUserId> viewableUserIds;
 
     public String getUserid() {
         return userid;
@@ -33,11 +33,11 @@ public class User extends RealmObject {
         this.username = username;
     }
 
-    public RealmList<RealmString> getEmails() {
+    public RealmList<EmailAddress> getEmails() {
         return emails;
     }
 
-    public void setEmails(RealmList<RealmString> emails) {
+    public void setEmails(RealmList<EmailAddress> emails) {
         this.emails = emails;
     }
 
@@ -49,10 +49,10 @@ public class User extends RealmObject {
         this.fullName = fullName;
     }
 
-    public RealmList<RealmString>getViewableUserIds() {
+    public RealmList<SharedUserId>getViewableUserIds() {
         return viewableUserIds;
     }
-    public void setViewableUserIds(RealmList<RealmString> ids) {
+    public void setViewableUserIds(RealmList<SharedUserId> ids) {
         viewableUserIds = ids;
     }
     public Profile getProfile() { return profile;}

@@ -16,7 +16,8 @@ import io.realm.RealmList;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
-import io.tidepool.urchin.data.RealmString;
+import io.tidepool.urchin.data.EmailAddress;
+import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 
 public class MainActivity extends AppCompatActivity {
@@ -95,10 +96,10 @@ public class MainActivity extends AppCompatActivity {
         final Date from = c.getTime();
         _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
             @Override
-            public void fetchComplete(RealmList<RealmString> userIds, Exception error) {
+            public void fetchComplete(RealmList<SharedUserId> userIds, Exception error) {
                 Log.d(LOG_TAG, "Viewable IDs: " + userIds + "Error: " + error);
                 if ( userIds != null ) {
-                    for (RealmString userId : userIds) {
+                    for (SharedUserId userId : userIds) {
                         _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
                             @Override
                             public void profileReceived(Profile profile, Exception error) {
