@@ -45,6 +45,9 @@ import io.tidepool.urchin.data.User;
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
 
+    // What server we will connect to
+    public static final String SERVER = APIClient.PRODUCTION;
+
     // Activity request codes
     private static final int REQ_LOGIN = 1;
 
@@ -80,7 +83,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         Realm realm = Realm.getInstance(this);
 
         // Create our API client on the appropriate service
-        _apiClient = new APIClient(this, APIClient.PRODUCTION);
+        _apiClient = new APIClient(this, SERVER);
         String sessionId = _apiClient.getSessionId();
         User user = _apiClient.getUser();
         if ( sessionId == null || user == null ) {

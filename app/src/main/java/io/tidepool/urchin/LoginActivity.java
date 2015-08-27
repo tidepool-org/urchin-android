@@ -10,6 +10,8 @@ import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 
@@ -68,7 +70,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
-                if (id == R.id.login || id == EditorInfo.IME_NULL) {
+                if (id == R.id.email || id == EditorInfo.IME_NULL) {
                     attemptLogin();
                     return true;
                 }
@@ -93,6 +95,18 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             mPasswordView.requestFocus();
             mRememberMeCheckBox.setChecked(true);
         }
+
+        TextView version = (TextView)findViewById(R.id.version_textview);
+        PackageInfo info = null;
+        String ver = "UNKNOWN";
+        try {
+            info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            ver = info.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        version.setText("v" + ver + " on " + MainActivity.SERVER);
     }
 
     private void populateAutoComplete() {
