@@ -3,6 +3,7 @@ package io.tidepool.urchin;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -11,6 +12,7 @@ import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -51,7 +53,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private RecyclerView _recyclerView;
     private ImageButton _addButton;
     private RealmResults<Note> _notesResultSet;
-    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy hh:mm a", Locale.US);
+    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.US);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -266,6 +268,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         }
 
         void formatHashtags(SpannableString text) {
+            int color = getResources().getColor(R.color.hashtag_text);
             int startSpan = -1;
             for ( int i = 0; i < text.length(); i++ ) {
                 Character c = text.charAt(i);
@@ -278,14 +281,16 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     // We're looking for whitespace
                     if ( Character.isWhitespace(c) ) {
                         // Found it. Add the span.
-                        text.setSpan(new ForegroundColorSpan(Color.BLUE), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                         startSpan = -1;
                     }
                 }
             }
             if ( startSpan != -1 ) {
                 // Hashtag was last
-                text.setSpan(new ForegroundColorSpan(Color.BLUE), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                text.setSpan(new ForegroundColorSpan(color), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
     }

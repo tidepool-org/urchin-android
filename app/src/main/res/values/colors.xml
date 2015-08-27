@@ -1,8 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="teal_50">#e0f2f1</color>
+    <color name="teal_100">#b2dfdb</color>
+    <color name="teal_200">#80cbc4</color>
+    <color name="teal_300">#4db6ac</color>
+    <color name="teal_400">#26a69a</color>
+    <color name="teal_500">#009688</color>
+    <color name="teal_600">#00897b</color>
+    <color name="teal_700">#00796b</color>
+    <color name="teal_800">#00695c</color>
+    <color name="teal_900">#004d40</color>
+    <color name="teal_A100">#a7ffeb</color>
+    <color name="teal_A200">#64ffda</color>
+    <color name="teal_A400">#1de9b6</color>
+    <color name="teal_A700">#00bfa5</color>
+
+    <color name="grey_50">#fafafa</color>
+    <color name="grey_100">#f5f5f5</color>
+    <color name="grey_200">#eeeeee</color>
+    <color name="grey_300">#e0e0e0</color>
+    <color name="grey_400">#bdbdbd</color>
+    <color name="grey_500">#9e9e9e</color>
+    <color name="grey_600">#757575</color>
+    <color name="grey_700">#616161</color>
+    <color name="grey_800">#424242</color>
+    <color name="grey_900">#212121</color>
+    <color name="grey_black_1000">#000000</color>
+    <color name="grey_white_1000">#ffffff</color>
+
+    <color name="app_theme_accent">@color/teal_A400</color>
+    <color name="app_theme_accent_light">@color/teal_A200</color>
+    <color name="app_theme_accent_text">@android:color/white</color>
+    <color name="app_theme_primary_light">@color/teal_200</color>
+    <color name="app_theme_primary_medium_light">@color/teal_400</color>
+    <color name="app_theme_primary">@color/teal_900</color>
+    <color name="app_theme_primary_medium_dark">@color/grey_800</color>
+    <color name="app_theme_primary_dark">@color/grey_900</color>
+
+
     <color name="add_button_fg">#FFFFFF</color>
-    <color name="add_button_bg">#008888</color>
+    <color name="add_button_bg">@color/app_theme_primary</color>
     <color name="card_bg_odd">#EEEEEE</color>
     <color name="card_bg_even">#AAAAAA</color>
-    <color name="notes_background">#004444</color>
+    <color name="notes_background">@color/grey_500</color>
+
+    <color name="disabled_text">@color/grey_600</color>
+    <color name="enabled_text">@android:color/white</color>
+    <color name="hashtag_text">@color/app_theme_primary</color>
+
+    <!-- Default button background gradients -->
+    <color name="button_start">@color/app_theme_primary_medium_light</color>
+    <color name="button_end">@color/app_theme_primary_medium_light</color>
+    <color name="button_selected_start">@color/app_theme_primary</color>
+    <color name="button_selected_end">@color/app_theme_primary</color>
+    <color name="button_disabled_start">@color/grey_500</color>
+    <color name="button_disabled_end">@color/grey_500</color>
+
 </resources>
