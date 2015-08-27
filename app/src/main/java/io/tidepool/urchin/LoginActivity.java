@@ -5,9 +5,11 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
+import android.content.Context;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 
@@ -53,13 +55,16 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        // See if there is a saved preference for the email address
+        String email = getPreferences(Context.MODE_PRIVATE).getString(BUNDLE_REMEMBER_ME, "");
+
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
-        mEmailView.setText("larry@dufflite.com");
+        mEmailView.setText(email);
+
         populateAutoComplete();
 
         mPasswordView = (EditText) findViewById(R.id.password);
-        mPasswordView.setText("larryAtDL");
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -83,6 +88,11 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        if ( email.length() > 0 ) {
+            mPasswordView.requestFocus();
+            mRememberMeCheckBox.setChecked(true);
+        }
     }
 
     private void populateAutoComplete() {
@@ -103,6 +113,15 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         // Store values at the time of the login attempt.
         String email = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
+
+        // Save the email if "remember me" is checked
+        SharedPreferences.Editor editor = getPreferences(Context.MODE_PRIVATE).edit();
+        if ( mRememberMeCheckBox.isChecked() ) {
+            editor.putString(BUNDLE_REMEMBER_ME, email);
+        } else {
+            editor.remove(BUNDLE_REMEMBER_ME);
+        }
+        editor.apply();
 
         boolean cancel = false;
         View focusView = null;
@@ -137,9 +156,11 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             client.signIn(email, password, new APIClient.SignInListener() {
                 @Override
                 public void signInComplete(User user, Exception exception) {
-                    showProgress(false);
                     if ( exception != null ) {
-                        Toast.makeText(LoginActivity.this, exception.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                        showProgress(false);
+                        Toast.makeText(LoginActivity.this, exception.toString(), Toast.LENGTH_LONG).show();
+                        mPasswordView.selectAll();
+                        mPasswordView.requestFocus();
                     } else {
                         Intent resultIntent = new Intent();
                         resultIntent.putExtra(BUNDLE_REMEMBER_ME, mRememberMeCheckBox.isChecked());
