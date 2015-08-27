@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <gradient
+                android:angle="90"
+                android:endColor="@color/button_selected_end"
+                android:startColor="@color/button_selected_start"/>
+        </shape>
+    </item>
+
+    <item android:state_enabled="false">
+        <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <gradient
+                android:angle="90"
+                android:endColor="@color/button_disabled_end"
+                android:startColor="@color/button_disabled_start"/>
+        </shape>
+    </item>
+
+    <item>
+        <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <gradient
+                android:angle="90"
+                android:endColor="@color/button_end"
+                android:startColor="@color/button_start"/>
+        </shape>
+    </item>
+</selector>
