@@ -14,6 +14,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.BasicNetwork;
 import com.android.volley.toolbox.DiskBasedCache;
+import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.StringRequest;
 import com.google.gson.ExclusionStrategy;
@@ -275,6 +276,53 @@ public class APIClient {
         // Tag the request with our context so they all can be removed if the activity goes away
         req.setTag(_context);
         _requestQueue.add(req);
+        return req;
+    }
+
+    public abstract static class SignOutListener {
+        public abstract void signedOut(int responseCode, Exception error);
+    }
+    public Request signOut(final SignOutListener listener) {
+        // Get the headers before we get rid of the session, or we won't have a session ID!
+        final Map<String, String> headers = getHeaders();
+
+        // Get rid of the session
+        Realm realm = Realm.getInstance(_context);
+        realm.beginTransaction();
+        realm.where(Session.class).findAll().clear();
+        realm.commitTransaction();
+
+        String url;
+        try {
+            url = new URL(getBaseURL(), "/auth/login").toString();
+        } catch (MalformedURLException e) {
+            listener.signedOut(0, e);
+            return null;
+        }
+
+        Request<Integer> req = new Request<Integer>(Request.Method.POST, url, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.signedOut(0, error);
+            }
+        }) {
+
+            @Override
+            protected Response<Integer> parseNetworkResponse(NetworkResponse response) {
+                return Response.success(response.statusCode, HttpHeaderParser.parseCacheHeaders(response));
+            }
+
+            @Override
+            protected void deliverResponse(Integer response) {
+                listener.signedOut(response, null);
+            }
+
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return headers;
+            }
+        };
+
         return req;
     }
 
