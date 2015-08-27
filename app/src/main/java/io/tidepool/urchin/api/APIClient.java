@@ -541,7 +541,6 @@ public class APIClient {
                     for ( int i = 0; i < messages.length(); i++ ) {
                         String msgJson = messages.getString(i);
                         Note note = gson.fromJson(msgJson, Note.class);
-                        note.setUserid(userId);
                         note = realm.copyToRealmOrUpdate(note);
                         noteList.add(note);
                     }
