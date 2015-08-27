@@ -62,7 +62,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/prompt_password"
-                android:imeActionId="@+id/login"
+                android:imeActionId="@+id/email"
                 android:imeActionLabel="@string/action_sign_in_short"
                 android:imeOptions="actionUnspecified"
                 android:inputType="textPassword"
@@ -93,8 +93,23 @@
                     android:text="@string/action_sign_in"/>
             </LinearLayout>
 
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="48dp"
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/tidepoollogo"/>
+
+            <TextView
+                android:id="@+id/version_textview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal|bottom"
+                android:layout_marginTop="8dp"
+                android:text="Version 0.1"/>
         </LinearLayout>
     </ScrollView>
+
 
 </LinearLayout>
 
