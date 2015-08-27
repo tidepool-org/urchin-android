@@ -90,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(LOG_TAG, "Remember Me!");
                     }
                     updateUser();
+                } else {
+                    finish();
                 }
         }
         super.onActivityResult(requestCode, resultCode, data);
