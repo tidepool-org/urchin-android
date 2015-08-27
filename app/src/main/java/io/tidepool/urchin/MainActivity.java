@@ -101,32 +101,37 @@ public class MainActivity extends AppCompatActivity {
      * Gets information about the current user
      */
     private void updateUser() {
+        _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
+            @Override
+            public void fetchComplete(RealmList<SharedUserId> userIds, Exception error) {
+                Log.d(LOG_TAG, "Viewable IDs received: " + userIds + "Error: " + error);
+                updateProfilesAndNotes(userIds);
+            }
+        });
+    }
+
+    private void updateProfilesAndNotes(RealmList<SharedUserId> userIds) {
         final Date to = new Date();
         Calendar c = Calendar.getInstance();
         c.setTime(to);
         c.add(Calendar.MONTH, -3);
         final Date from = c.getTime();
-        _apiClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
-            @Override
-            public void fetchComplete(RealmList<SharedUserId> userIds, Exception error) {
-                Log.d(LOG_TAG, "Viewable IDs: " + userIds + "Error: " + error);
-                if ( userIds != null ) {
-                    for (SharedUserId userId : userIds) {
-                        _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
-                            @Override
-                            public void profileReceived(Profile profile, Exception error) {
-                                Log.d(LOG_TAG, "Profile: " + profile);
-                            }
-                        });
-                        _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
-                            @Override
-                            public void notesReceived(RealmList<Note> notes, Exception error) {
-                                Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
-                            }
-                        });
+
+        if ( userIds != null ) {
+            for (SharedUserId userId : userIds) {
+                _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
+                    @Override
+                    public void profileReceived(Profile profile, Exception error) {
+                        Log.d(LOG_TAG, "Profile updated: " + profile + " error: " + error);
                     }
-                }
+                });
+                _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
+                    @Override
+                    public void notesReceived(RealmList<Note> notes, Exception error) {
+                        Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
+                    }
+                });
             }
-        });
+        }
     }
 }
