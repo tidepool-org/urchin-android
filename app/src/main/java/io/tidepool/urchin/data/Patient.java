@@ -1,6 +1,7 @@
 package io.tidepool.urchin.data;
 
 import io.realm.RealmObject;
+import io.realm.annotations.PrimaryKey;
 
 /**
  * Created by Brian King on 8/26/15.

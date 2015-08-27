@@ -16,7 +16,7 @@ import java.util.Map;
  * Created by Brian King on 8/25/15.
  */
 public class GsonRequest<T> extends Request<T> {
-    private final Gson gson = APIClient.getGson();
+    private final Gson gson = APIClient.getGson(APIClient.DEFAULT_DATE_FORMAT);
     private final Class<T> clazz;
     private final Map<String, String> headers;
     private final Response.Listener<T> listener;

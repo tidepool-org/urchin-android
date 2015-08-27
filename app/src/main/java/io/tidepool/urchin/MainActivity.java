@@ -97,19 +97,21 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void fetchComplete(RealmList<RealmString> userIds, Exception error) {
                 Log.d(LOG_TAG, "Viewable IDs: " + userIds + "Error: " + error);
-                for ( RealmString userId : userIds ) {
-                    _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
-                        @Override
-                        public void profileReceived(Profile profile, Exception error) {
-                            Log.d(LOG_TAG, "Profile: " + profile);
-                        }
-                    });
-                    _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
-                        @Override
-                        public void notesReceived(RealmList<Note> notes, Exception error) {
-                            Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
-                        }
-                    });
+                if ( userIds != null ) {
+                    for (RealmString userId : userIds) {
+                        _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
+                            @Override
+                            public void profileReceived(Profile profile, Exception error) {
+                                Log.d(LOG_TAG, "Profile: " + profile);
+                            }
+                        });
+                        _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
+                            @Override
+                            public void notesReceived(RealmList<Note> notes, Exception error) {
+                                Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
+                            }
+                        });
+                    }
                 }
             }
         });

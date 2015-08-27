@@ -1,6 +1,7 @@
 package io.tidepool.urchin.data;
 
 import io.realm.RealmObject;
+import io.realm.annotations.PrimaryKey;
 
 /**
  * Created by Brian King on 8/25/15.
@@ -11,6 +12,10 @@ public class Profile extends RealmObject {
     private String fullName;
     private String shortName;
     private Patient patient;
+
+    // This keeps us from having a bunch of these lying around in the DB. One profile per user.
+    @PrimaryKey
+    private String userId;
 
     public String getFirstName() {
         return firstName;
@@ -50,5 +55,13 @@ public class Profile extends RealmObject {
 
     public void setPatient(Patient patient) {
         this.patient = patient;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }

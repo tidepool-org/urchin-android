@@ -64,7 +64,11 @@ public class APIClient {
 
     private static final String LOG_TAG = "APIClient";
 
+    // Date format for most things,
     public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSZ";
+
+    // Date format for messages
+    public static final String MESSAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
     // Header label for the session token
     private static final String HEADER_SESSION_ID = "x-tidepool-session-token";
@@ -229,7 +233,7 @@ public class APIClient {
 
                 Session s = sessions.first();
 
-                Gson gson = getGson();
+                Gson gson = getGson(DEFAULT_DATE_FORMAT);
                 User user = gson.fromJson(response, User.class);
                 realm.beginTransaction();
                 User copiedUser = realm.copyToRealm(user);
@@ -274,12 +278,12 @@ public class APIClient {
     }
 
     /**
-     * Returns a GSON instance used for working with Realm and GSON together
-     * @return a GSON instance to use
+     * Returns a GSON instance used for working with Realm and GSON together, and a specific
+     * date format for date fields.
+     *
+     * @param dateFormat Date format string to use when parsing dates
+     * @return a GSON instance for use with Realm and the specified date format
      */
-    public static Gson getGson() {
-        return getGson(DEFAULT_DATE_FORMAT);
-    }
     public static Gson getGson(String dateFormat) {
         // Make a custom Gson instance, with a custom TypeAdapter for each wrapper object.
         // In this instance we only have RealmList<RealmString> as a a wrapper for RealmList<String>
@@ -391,13 +395,17 @@ public class APIClient {
             return null;
         }
 
-        GsonRequest<Profile> req = new GsonRequest<>(url, Profile.class, getHeaders(), new Response.Listener<Profile>() {
+        StringRequest req = new StringRequest(url, new Response.Listener<String>() {
             @Override
-            public void onResponse(Profile response) {
+            public void onResponse(String response) {
+                Gson gson = getGson(DEFAULT_DATE_FORMAT);
+                Profile fakeProfile = gson.fromJson(response, Profile.class);
+                fakeProfile.setUserId(userId);
+
                 Log.d(LOG_TAG, "Profile response: " + response);
                 Realm realm = Realm.getInstance(_context);
                 realm.beginTransaction();
-                Profile profile = realm.copyToRealm(response);
+                Profile profile = realm.copyToRealmOrUpdate(fakeProfile);
                 // Create a user with this profile and add / update it
                 User user = realm.where(User.class).equalTo("userid", userId).findFirst();
                 if ( user == null ) {
@@ -415,7 +423,12 @@ public class APIClient {
                 Log.e(LOG_TAG, "Profile error: " + error);
                 listener.profileReceived(null, error);
             }
-        });
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
 
         _requestQueue.add(req);
         return req;
@@ -450,7 +463,7 @@ public class APIClient {
                 RealmList<Note> noteList = new RealmList<>();
                 realm.beginTransaction();
                 // Odd date format in the messages
-                Gson gson = getGson("yyyy-MM-dd'T'HH:mm:ssZ");
+                Gson gson = getGson(MESSAGE_DATE_FORMAT);
                 try {
                     JSONObject obj = new JSONObject(json);
                     JSONArray messages = obj.getJSONArray("messages");
