@@ -2,11 +2,15 @@ package io.tidepool.urchin;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -238,7 +242,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         @Override
         public void onBindViewHolder(NotesViewHolder notesViewHolder, int i) {
             Note note = _notesResultSet.get(i);
-            notesViewHolder._body.setText(note.getMessagetext());
+            SpannableString bodyText = new SpannableString(note.getMessagetext());
+            formatHashtags(bodyText);
+            notesViewHolder._body.setText(bodyText, TextView.BufferType.SPANNABLE);
+
             Realm realm = Realm.getInstance(MainActivity.this);
 
             User user = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
@@ -252,6 +259,30 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         @Override
         public int getItemCount() {
             return _notesResultSet.size();
+        }
+
+        void formatHashtags(SpannableString text) {
+            int startSpan = -1;
+            for ( int i = 0; i < text.length(); i++ ) {
+                Character c = text.charAt(i);
+                if ( startSpan == -1 ) {
+                    // We're looking for a hashtag
+                    if ( c.equals('#') ) {
+                        startSpan = i;
+                    }
+                } else {
+                    // We're looking for whitespace
+                    if ( Character.isWhitespace(c) ) {
+                        // Found it. Add the span.
+                        text.setSpan(new ForegroundColorSpan(Color.BLUE), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        startSpan = -1;
+                    }
+                }
+            }
+            if ( startSpan != -1 ) {
+                // Hashtag was last
+                text.setSpan(new ForegroundColorSpan(Color.BLUE), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
         }
     }
 
