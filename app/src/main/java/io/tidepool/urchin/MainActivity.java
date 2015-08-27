@@ -22,8 +22,11 @@ import android.widget.TextView;
 
 import org.w3c.dom.Text;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
 import io.realm.Realm;
 import io.realm.RealmChangeListener;
@@ -48,6 +51,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private RecyclerView _recyclerView;
     private ImageButton _addButton;
     private RealmResults<Note> _notesResultSet;
+    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy hh:mm a", Locale.US);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -250,10 +254,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             User user = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
             notesViewHolder._author.setText(getPrintableNameForUser(user));
-            notesViewHolder._date.setText(note.getTimestamp().toString());
+            notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
 
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
-            notesViewHolder.itemView.setBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+            //notesViewHolder.itemView.setBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
         }
 
         @Override

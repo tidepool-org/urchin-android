@@ -6,12 +6,14 @@
     </style>
 
     <style name="NoteAuthorText" parent="@android:style/TextAppearance.Large">
-
+        <item name="android:textStyle">bold</item>
     </style>
+
     <style name="NoteDateText" parent="@android:style/TextAppearance.Small">
-
+        <item name="android:textStyle">italic</item>
     </style>
+
     <style name="NoteBodyText" parent="@android:style/TextAppearance.Medium">
-
     </style>
+
 </resources>
