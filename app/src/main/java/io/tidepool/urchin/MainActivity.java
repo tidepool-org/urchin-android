@@ -4,15 +4,27 @@ import android.app.Activity;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import org.w3c.dom.Text;
 
 import java.util.Calendar;
 import java.util.Date;
 
 import io.realm.Realm;
+import io.realm.RealmChangeListener;
 import io.realm.RealmList;
+import io.realm.RealmResults;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
@@ -20,7 +32,7 @@ import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "MainActivity";
 
     // Activity request codes
@@ -28,13 +40,28 @@ public class MainActivity extends AppCompatActivity {
 
     private APIClient _apiClient;
 
+    // UI stuff
+    private RecyclerView _recyclerView;
+    private ImageButton _addButton;
+    private RealmResults<Note> _notesResultSet;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        _recyclerView = (RecyclerView)findViewById(R.id.recycler_view);
+        _recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        _addButton = (ImageButton)findViewById(R.id.add_button);
+        _addButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addButtonTapped();
+            }
+        });
+
         Realm realm = Realm.getInstance(this);
-        Log.d(LOG_TAG, "Realm path: " + realm.getPath());
 
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, APIClient.PRODUCTION);
@@ -47,6 +74,29 @@ public class MainActivity extends AppCompatActivity {
         } else {
             updateUser();
         }
+    }
+
+    protected void startQuery() {
+        Realm realm = Realm.getInstance(this);
+
+        // Set up our query
+        _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
+        _recyclerView.setAdapter(new NotesAdapter());
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        startQuery();
+        Realm realm = Realm.getInstance(this);
+        realm.addChangeListener(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Realm realm = Realm.getInstance(this);
+        realm.removeChangeListener(this);
     }
 
     @Override
@@ -97,6 +147,10 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    protected void addButtonTapped() {
+        Log.d(LOG_TAG, "Add Tapped");
+    }
+
     /**
      * Gets information about the current user
      */
@@ -133,5 +187,77 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }
+    }
+
+    public class NotesViewHolder extends RecyclerView.ViewHolder {
+        public TextView _author;
+        public TextView _date;
+        public TextView _body;
+
+        public NotesViewHolder(View itemView) {
+            super(itemView);
+            _author = (TextView)itemView.findViewById(R.id.note_author);
+            _date = (TextView)itemView.findViewById(R.id.note_date);
+            _body = (TextView)itemView.findViewById(R.id.note_body);
+        }
+    }
+
+    public class NotesAdapter extends RecyclerView.Adapter<NotesViewHolder> {
+
+        public String getPrintableNameForUser(User user) {
+            String name = null;
+            if ( user != null ) {
+                Profile profile = user.getProfile();
+                if (profile != null) {
+                    name = profile.getFullName();
+                    if (!TextUtils.isEmpty(name)) {
+                        return name;
+                    }
+                    name = profile.getFirstName() + " " + profile.getLastName();
+                } else {
+                    name = user.getFullName();
+                    if (TextUtils.isEmpty(name)) {
+                        name = user.getUsername();
+                    }
+                }
+            }
+
+            if ( TextUtils.isEmpty(name) ) {
+                name = "UNKNOWN";
+            }
+
+            return name;
+        }
+
+        @Override
+        public NotesViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
+            View v = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.cardview_note, viewGroup, false);
+            return new NotesViewHolder(v);
+        }
+
+        @Override
+        public void onBindViewHolder(NotesViewHolder notesViewHolder, int i) {
+            Note note = _notesResultSet.get(i);
+            notesViewHolder._body.setText(note.getMessagetext());
+            Realm realm = Realm.getInstance(MainActivity.this);
+
+            User user = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
+            notesViewHolder._author.setText(getPrintableNameForUser(user));
+            notesViewHolder._date.setText(note.getTimestamp().toString());
+
+            int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
+            notesViewHolder.itemView.setBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+        }
+
+        @Override
+        public int getItemCount() {
+            return _notesResultSet.size();
+        }
+    }
+
+    @Override
+    public void onChange() {
+        // Realm dataset has changed. Refresh our data
+        _recyclerView.getAdapter().notifyDataSetChanged();
     }
 }

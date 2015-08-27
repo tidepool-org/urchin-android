@@ -1,5 +1,7 @@
 package io.tidepool.urchin.data;
 
+import android.text.TextUtils;
+
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
