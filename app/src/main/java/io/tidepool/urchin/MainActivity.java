@@ -230,6 +230,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                         name = user.getUsername();
                     }
                 }
+                if ( TextUtils.isEmpty(name) ) {
+                    name = "[" + user.getUserid() + "]";
+                }
             }
 
             if ( TextUtils.isEmpty(name) ) {
@@ -255,7 +258,19 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             Realm realm = Realm.getInstance(MainActivity.this);
 
             User user = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
-            notesViewHolder._author.setText(getPrintableNameForUser(user));
+            User group = null;
+            String groupId = note.getGroupid();
+            String userId = note.getUserid();
+            if ( groupId != null && !groupId.equals(userId) ) {
+                group = realm.where(User.class).equalTo("userid", groupId).findFirst();
+            }
+
+            if ( group != null ) {
+                notesViewHolder._author.setText(getPrintableNameForUser(user) + " to " + getPrintableNameForUser(group));
+            } else {
+                notesViewHolder._author.setText(getPrintableNameForUser(user));
+            }
+
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
 
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
