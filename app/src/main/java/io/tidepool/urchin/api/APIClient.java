@@ -323,6 +323,7 @@ public class APIClient {
             }
         };
 
+        _requestQueue.add(req);
         return req;
     }
 

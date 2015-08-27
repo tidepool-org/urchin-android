@@ -64,7 +64,14 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_sign_out) {
+            _apiClient.signOut(new APIClient.SignOutListener() {
+                @Override
+                public void signedOut(int responseCode, Exception error) {
+                    Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
+                    startActivityForResult(loginIntent, REQ_LOGIN);
+                }
+            });
             return true;
         }
 
@@ -79,6 +86,9 @@ public class MainActivity extends AppCompatActivity {
                 // Get the auth token and user from the intent
                 if ( resultCode == Activity.RESULT_OK ) {
                     Log.d(LOG_TAG, "Sign-In success");
+                    if ( data.getBooleanExtra(LoginActivity.BUNDLE_REMEMBER_ME, false) ) {
+                        Log.d(LOG_TAG, "Remember Me!");
+                    }
                     updateUser();
                 }
         }

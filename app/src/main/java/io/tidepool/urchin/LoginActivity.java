@@ -22,6 +22,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,11 +38,15 @@ import io.tidepool.urchin.data.User;
  */
 public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
+    // Boolean returned to the calling application in the Intent extras
+    public static final String BUNDLE_REMEMBER_ME = "RememberMe";
+
     // UI references.
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
+    private CheckBox mRememberMeCheckBox;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +70,8 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
                 return false;
             }
         });
+
+        mRememberMeCheckBox = (CheckBox)findViewById(R.id.login_remember_me);
 
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
@@ -135,6 +142,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
                         Toast.makeText(LoginActivity.this, exception.getLocalizedMessage(), Toast.LENGTH_LONG).show();
                     } else {
                         Intent resultIntent = new Intent();
+                        resultIntent.putExtra(BUNDLE_REMEMBER_ME, mRememberMeCheckBox.isChecked());
                         setResult(Activity.RESULT_OK, resultIntent);
                         finish();
                     }
