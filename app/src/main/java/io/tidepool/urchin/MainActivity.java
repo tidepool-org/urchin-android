@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -41,7 +42,7 @@ import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 
-public class MainActivity extends AppCompatActivity implements RealmChangeListener {
+public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
 
     // Activity request codes
@@ -53,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private RecyclerView _recyclerView;
     private ImageButton _addButton;
     private RealmResults<Note> _notesResultSet;
+    private SwipeRefreshLayout _swipeRefreshLayout;
+
     private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.US);
 
     @Override
@@ -62,6 +65,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         _recyclerView = (RecyclerView)findViewById(R.id.recycler_view);
         _recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        _swipeRefreshLayout = (SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
+        _swipeRefreshLayout.setOnRefreshListener(this);
 
         _addButton = (ImageButton)findViewById(R.id.add_button);
         _addButton.setOnClickListener(new View.OnClickListener() {
@@ -193,10 +199,18 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     @Override
                     public void notesReceived(RealmList<Note> notes, Exception error) {
                         Log.d(LOG_TAG, "Notes received: " + notes + " error: " + error);
+                        _swipeRefreshLayout.setRefreshing(false);
                     }
                 });
             }
         }
+    }
+
+    @Override
+    public void onRefresh() {
+        // Swipe view refresh
+        Log.d(LOG_TAG, "OnRefresh");
+        updateUser();
     }
 
     public class NotesViewHolder extends RecyclerView.ViewHolder {
