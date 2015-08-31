@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private RealmResults<Note> _notesResultSet;
     private SwipeRefreshLayout _swipeRefreshLayout;
 
-    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.US);
+    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +93,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         } else {
             updateUser();
         }
+
+        setTitle(R.string.all_notes);
     }
 
     protected void startQuery() {
@@ -169,6 +171,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     protected void addButtonTapped() {
         Log.d(LOG_TAG, "Add Tapped");
+        Intent intent = new Intent(this, NewNoteActivity.class);
+        startActivity(intent);
     }
 
     /**

@@ -48,6 +48,10 @@
     <color name="enabled_text">@android:color/white</color>
     <color name="hashtag_text">@color/app_theme_primary</color>
 
+    <color name="new_note_bg">#00000000</color>
+
+    <color name="link">#0088CC</color>
+
     <!-- Default button background gradients -->
     <color name="button_start">@color/app_theme_primary_medium_light</color>
     <color name="button_end">@color/app_theme_primary_medium_light</color>

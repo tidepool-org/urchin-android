@@ -1,0 +1,106 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingLeft="@dimen/activity_horizontal_margin"
+                android:paddingRight="@dimen/activity_horizontal_margin"
+                android:paddingTop="@dimen/activity_vertical_margin"
+                android:paddingBottom="@dimen/activity_vertical_margin"
+                android:animateLayoutChanges="true"
+                tools:context="io.tidepool.urchin.NewNoteActivity">
+
+    <!-- Date / time view -->
+    <LinearLayout
+        android:id="@+id/date_time_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@android:style/TextAppearance.Medium"
+            android:id="@+id/date_time"
+            android:text="Monday 8/31/15 10:48 AM"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.75"/>
+
+        <TextView
+            style="@android:style/TextAppearance.Medium"
+            android:id="@+id/change_label"
+            android:textColor="@color/link"
+            android:text="@string/change"
+            android:layout_weight="0.25"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|end"
+            android:gravity="end"/>
+    </LinearLayout>
+
+    <!-- Separator -->
+    <View
+        android:id="@+id/sep1"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_below="@id/date_time_layout"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:background="@android:color/darker_gray"/>
+
+    <!-- Hashtag view -->
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_below="@id/sep1"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"/>
+
+    <!-- Separator -->
+    <View
+        android:id="@+id/sep2"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_below="@id/recycler_view"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:background="@android:color/darker_gray"/>
+
+    <!-- Edit area -->
+    <EditText
+        style="@android:style/TextAppearance.Large"
+        android:id="@+id/note_edit_text"
+        android:layout_below="@id/sep2"
+        android:layout_above="@+id/button_layout"
+        android:hint="@string/add_your_note_here"
+        android:background="@color/new_note_bg"
+        android:padding="8dp"
+        android:gravity="start|top"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:inputType="textMultiLine|textCapSentences"
+        >
+        <requestFocus/>
+    </EditText>
+
+    <!-- Post button -->
+    <LinearLayout
+        android:id="@+id/button_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_alignParentBottom="true">
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="0.75"/>
+
+        <Button
+            android:id="@+id/post_button"
+            android:text="@string/post"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.25"
+            android:padding="16dp"/>
+    </LinearLayout>
+
+</RelativeLayout>
