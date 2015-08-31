@@ -211,6 +211,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     }
                 });
             }
+        } else {
+            _swipeRefreshLayout.setRefreshing(false);
         }
     }
 
