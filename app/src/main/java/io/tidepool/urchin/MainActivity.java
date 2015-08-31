@@ -114,6 +114,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     @Override
     protected void onStop() {
         super.onStop();
+        _swipeRefreshLayout.setRefreshing(false);
         Realm realm = Realm.getInstance(this);
         realm.removeChangeListener(this);
     }
