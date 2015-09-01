@@ -14,6 +14,9 @@
     <string name="change">change</string>
     <string name="add_your_note_here">What\'s going on?</string>
     <string name="post">Post</string>
+    <string name="action_change_time">Change Time</string>
+    <string name="action_change_date">Change Date</string>
+    <string name="note_date">Note Date</string>
 
 </resources>
 
