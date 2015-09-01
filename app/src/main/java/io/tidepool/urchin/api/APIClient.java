@@ -41,6 +41,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -49,12 +50,14 @@ import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.RealmResults;
+import io.tidepool.urchin.data.Hashtag;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.Session;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
+import io.tidepool.urchin.util.HashtagUtils;
 
 /**
  * Created by Brian King on 8/25/15.
@@ -419,6 +422,9 @@ public class APIClient {
 
                     realm.beginTransaction();
 
+                    // Out with the old
+                    realm.where(SharedUserId.class).findAll().clear();
+
                     while ( iter.hasNext() ) {
                         String viewableId = (String)iter.next();
                         userIds.add(new SharedUserId(viewableId));
@@ -532,6 +538,13 @@ public class APIClient {
                 Realm realm = Realm.getInstance(_context);
                 RealmList<Note> noteList = new RealmList<>();
                 realm.beginTransaction();
+
+                // Get rid of all of the hashtags for this user. We'll add them in as we go
+                // through the messages
+                realm.where(Hashtag.class)
+                        .equalTo("ownerId", userId)
+                        .findAll().clear();
+
                 // Odd date format in the messages
                 Gson gson = getGson(MESSAGE_DATE_FORMAT);
                 try {
@@ -542,6 +555,14 @@ public class APIClient {
                         String msgJson = messages.getString(i);
                         Note note = gson.fromJson(msgJson, Note.class);
                         note = realm.copyToRealmOrUpdate(note);
+
+                        // Update the hashtags for this note.
+                        note.getHashtags().clear();
+                        List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
+                        for ( Hashtag hash : hashtags ) {
+                            hash.setOwnerId(userId);
+                            note.getHashtags().add(hash);
+                        }
                         noteList.add(note);
                     }
                 } catch (JSONException e) {

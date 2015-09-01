@@ -7,6 +7,7 @@ import android.graphics.Typeface;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.CardView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Spannable;
@@ -25,6 +26,7 @@ import android.widget.TextView;
 
 import org.w3c.dom.Text;
 
+import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -41,6 +43,7 @@ import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
+import io.tidepool.urchin.util.HashtagUtils;
 
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
@@ -80,7 +83,25 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
         });
 
-        Realm realm = Realm.getInstance(this);
+        // For now, we are going to blow away our database on an update
+        try {
+            Realm.getInstance(this);
+        } catch (RuntimeException e) {
+            Log.e(LOG_TAG, "Failed to load realm database. Blowing away and trying anew.");
+            File dbPath = getFilesDir();
+            File dbFile = new File(dbPath, "default.realm");
+            boolean deleted = dbFile.delete();
+            Log.e(LOG_TAG, "dbFile: " + dbFile.getPath() + " deleted: " + deleted);
+
+            // Try again, this time we'll just blow up if it doesn't work
+            try {
+                Realm.getInstance(this);
+            } catch (RuntimeException eInner) {
+                Log.e(LOG_TAG, "Failed to open / update the Realm database. Re-throwing.");
+                e.printStackTrace();
+                throw(eInner);
+            }
+        }
 
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, SERVER);
@@ -276,7 +297,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         public void onBindViewHolder(NotesViewHolder notesViewHolder, int i) {
             Note note = _notesResultSet.get(i);
             SpannableString bodyText = new SpannableString(note.getMessagetext());
-            formatHashtags(bodyText);
+            int color = getResources().getColor(R.color.hashtag_text);
+            HashtagUtils.formatHashtags(bodyText, color, true);
             notesViewHolder._body.setText(bodyText, TextView.BufferType.SPANNABLE);
 
             Realm realm = Realm.getInstance(MainActivity.this);
@@ -298,7 +320,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
 
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
-            notesViewHolder.itemView.setBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+            CardView cardView = (CardView)notesViewHolder.itemView;
+            cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
         }
 
         @Override
@@ -306,32 +329,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             return _notesResultSet.size();
         }
 
-        void formatHashtags(SpannableString text) {
-            int color = getResources().getColor(R.color.hashtag_text);
-            int startSpan = -1;
-            for ( int i = 0; i < text.length(); i++ ) {
-                Character c = text.charAt(i);
-                if ( startSpan == -1 ) {
-                    // We're looking for a hashtag
-                    if ( c.equals('#') ) {
-                        startSpan = i;
-                    }
-                } else {
-                    // We're looking for whitespace
-                    if ( Character.isWhitespace(c) ) {
-                        // Found it. Add the span.
-                        text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        startSpan = -1;
-                    }
-                }
-            }
-            if ( startSpan != -1 ) {
-                // Hashtag was last
-                text.setSpan(new ForegroundColorSpan(color), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-        }
     }
 
     @Override
