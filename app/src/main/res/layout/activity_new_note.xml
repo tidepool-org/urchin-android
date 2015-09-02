@@ -49,17 +49,17 @@
 
     <!-- Hashtag view -->
     <android.support.v7.widget.RecyclerView
-        android:id="@+id/recycler_view"
+        android:id="@+id/hashtag_recyclerview"
         android:layout_below="@id/sep1"
         android:layout_width="match_parent"
-        android:layout_height="48dp"/>
+        android:layout_height="@dimen/hashtag_height"/>
 
     <!-- Separator -->
     <View
         android:id="@+id/sep2"
         android:layout_width="match_parent"
         android:layout_height="2dp"
-        android:layout_below="@id/recycler_view"
+        android:layout_below="@id/hashtag_recyclerview"
         android:layout_marginTop="4dp"
         android:layout_marginBottom="4dp"
         android:background="@android:color/darker_gray"/>
@@ -92,14 +92,14 @@
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_weight="0.75"/>
+            android:layout_weight="0.65"/>
 
         <Button
             android:id="@+id/post_button"
             android:text="@string/post"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="0.25"
+            android:layout_weight="0.35"
             android:padding="16dp"/>
     </LinearLayout>
 
