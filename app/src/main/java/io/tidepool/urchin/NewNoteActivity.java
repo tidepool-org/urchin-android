@@ -277,6 +277,8 @@ public class NewNoteActivity extends AppCompatActivity {
                 addHashtag(tag);
             }
         }));
+
+        realm.close();
     }
 
     private void addHashtag(String tag) {

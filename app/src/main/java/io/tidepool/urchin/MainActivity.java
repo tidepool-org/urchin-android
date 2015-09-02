@@ -2,9 +2,7 @@ package io.tidepool.urchin;
 
 import android.animation.Animator;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Typeface;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -20,14 +18,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-
-import org.w3c.dom.Text;
 
 import java.io.File;
 import java.text.DateFormat;
@@ -47,18 +41,16 @@ import io.realm.RealmChangeListener;
 import io.realm.RealmList;
 import io.realm.RealmResults;
 import io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
+import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
 
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
-
-    // Special user IDs used for populating the filter menu
-    private static final String TAG_ALL_USERS = "AllUsers";
-    private static final String TAG_SIGNOUT = "SignOut";
 
     // What server we will connect to
     public static final String SERVER = APIClient.PRODUCTION;
@@ -103,8 +95,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         });
 
         // For now, we are going to blow away our database on an update
+        Realm realm = null;
         try {
-            Realm.getInstance(this);
+            realm = Realm.getInstance(this);
         } catch (RuntimeException e) {
             Log.e(LOG_TAG, "Failed to load realm database. Blowing away and trying anew.");
             File dbPath = getFilesDir();
@@ -114,13 +107,14 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             // Try again, this time we'll just blow up if it doesn't work
             try {
-                Realm.getInstance(this);
+                realm = Realm.getInstance(this);
             } catch (RuntimeException eInner) {
                 Log.e(LOG_TAG, "Failed to open / update the Realm database. Re-throwing.");
                 e.printStackTrace();
                 throw(eInner);
             }
         }
+
 
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, SERVER);
@@ -134,7 +128,14 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             updateUser();
         }
 
-        setTitle(R.string.all_notes);
+        // Select the current user, if present in the db
+        CurrentUser current = realm.where(CurrentUser.class).findFirst();
+        if ( current != null ) {
+            setUserFilter(current.getCurrentUser());
+        } else {
+            setTitle(R.string.all_notes);
+        }
+        realm.close();
     }
 
     protected void populateNotes() {
@@ -151,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         }
 
         _recyclerView.setAdapter(new NotesAdapter());
+        realm.close();
     }
 
     @Override
@@ -159,6 +161,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         populateNotes();
         Realm realm = Realm.getInstance(this);
         realm.addChangeListener(this);
+        realm.close();
     }
 
     @Override
@@ -167,6 +170,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _swipeRefreshLayout.setRefreshing(false);
         Realm realm = Realm.getInstance(this);
         realm.removeChangeListener(this);
+        realm.close();
     }
 
     @Override
@@ -368,14 +372,27 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 showDropDownMenu(false);
             }
         });
+
+        realm.close();
     }
 
     private void setUserFilter(User user) {
+        // Set the current user in the database
+        Realm realm = Realm.getInstance(this);
+        realm.beginTransaction();
+        realm.where(CurrentUser.class).findAll().clear();
+        CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
+        newCurrentUser.setCurrentUser(user);
+        realm.commitTransaction();
+        realm.close();
+
+        // Set our local copy and update the list of notes
         _userFilter = user;
         populateNotes();
     }
 
     private void signOut() {
+        _userFilter = null;
         _apiClient.signOut(new APIClient.SignOutListener() {
             @Override
             public void signedOut(int responseCode, Exception error) {
@@ -470,6 +487,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
             CardView cardView = (CardView)notesViewHolder.itemView;
             cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+
+            realm.close();
         }
 
         @Override
@@ -479,64 +498,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     }
 
-    public class UserFilterAdapter extends ArrayAdapter<User> {
-
-        public UserFilterAdapter(Context context, int resource, List<User> objects) {
-            super(context, resource, objects);
-        }
-
-        @Override
-        public int getCount() {
-            // We have 2 additional rows to show, "All Users" and "Sign Out".
-            return super.getCount() + 2;
-        }
-
-        @Override
-        public User getItem(int index) {
-            if ( index == 0 ) {
-                User user = new User();
-                user.setUserid(TAG_ALL_USERS);
-                user.setFullName(getString(R.string.all_notes));
-                return user;
-            }
-
-            if ( index == getCount() - 1 ) {
-                User user = new User();
-                user.setUserid(TAG_SIGNOUT);
-                user.setFullName(getString(R.string.action_sign_out));
-                return user;
-            }
-
-            return super.getItem(index - 1);
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            View v = convertView;
-            if ( v == null ) {
-                v = getLayoutInflater().inflate(R.layout.list_item_user, parent, false);
-            }
-
-            User user = getItem(position);
-            TextView nameText = (TextView)v.findViewById(R.id.name_textview);
-            String name = user.getFullName();
-            if (TextUtils.isEmpty(name)){
-                name = user.getProfile().getFullName();
-            }
-            nameText.setText(name);
-
-            View indent = v.findViewById(R.id.indent);
-            if ( user.getUserid().equals(TAG_ALL_USERS) || user.getUserid().equals(TAG_SIGNOUT) ) {
-                indent.setVisibility(View.GONE);
-                nameText.setTypeface(null, Typeface.BOLD);
-            } else {
-                indent.setVisibility(View.VISIBLE);
-                nameText.setTypeface(null, Typeface.NORMAL);
-            }
-
-            return v;
-        }
-    }
 
     @Override
     public void onChange() {
