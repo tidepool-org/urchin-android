@@ -194,6 +194,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             } else {
                 showDropDownMenu(false);
             }
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -322,41 +323,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     }
 
     private void populateDropDownList() {
-        Realm realm = Realm.getInstance(this);
 
-        // Unfortunately Realm does not support nested or joined queries, so we'll have to a bit
-        // of manual labor here.
-
-        // Get all of the profiles that do not have a null patient field. These are the only users
-        // who can post a message.
-        RealmResults<Profile> profiles = realm.where(Profile.class).isNotNull("patient").findAll();
-
-        // Create a set of user IDs from these profiles
-        Set<String> userIds = new HashSet<>();
-        for ( Profile profile : profiles ) {
-            userIds.add(profile.getUserId());
-        }
-
-        // Now get our list of users
-        List<User> users = new ArrayList<>();
-        for ( String userId : userIds ) {
-            User user = realm.where(User.class).equalTo("userid", userId).findFirst();
-            if ( user != null ) {
-                users.add(user);
-            } else {
-                Log.e(LOG_TAG, "Failed to find user with ID " + userId);
-            }
-        }
-
-        // Sort alphabetically by fullname, as that seems to be the only field guaranteed to be set
-        Collections.sort(users, new Comparator<User>() {
-            @Override
-            public int compare(User lhs, User rhs) {
-                return lhs.getProfile().getFullName().compareTo(rhs.getProfile().getFullName());
-            }
-        });
-
-        _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users));
+        // Make an adapter with the "extras": "sign out" and "all users".
+        List<User> users = UserFilterAdapter.createUserList(this);
+        _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users, true));
         _dropDownListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -372,8 +342,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 showDropDownMenu(false);
             }
         });
-
-        realm.close();
     }
 
     private void setUserFilter(User user) {

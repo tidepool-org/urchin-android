@@ -1,106 +1,130 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:tools="http://schemas.android.com/tools"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingLeft="@dimen/activity_horizontal_margin"
-                android:paddingRight="@dimen/activity_horizontal_margin"
-                android:paddingTop="@dimen/activity_vertical_margin"
-                android:paddingBottom="@dimen/activity_vertical_margin"
-                android:animateLayoutChanges="true"
-                tools:context="io.tidepool.urchin.NewNoteActivity">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             xmlns:tools="http://schemas.android.com/tools"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent">
 
-    <!-- Date / time view -->
-    <LinearLayout
-        android:id="@+id/date_time_layout"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:paddingBottom="@dimen/activity_vertical_margin"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:paddingTop="@dimen/activity_vertical_margin"
+        tools:context="io.tidepool.urchin.NewNoteActivity">
 
-        <TextView
-            style="@android:style/TextAppearance.Medium"
-            android:id="@+id/date_time"
-            android:text="Monday 8/31/15 10:48 AM"
-            android:layout_width="0dp"
+        <!-- Date / time view -->
+        <LinearLayout
+            android:id="@+id/date_time_layout"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.75"/>
+            android:layout_alignParentTop="true"
+            android:orientation="horizontal">
 
-        <TextView
-            style="@android:style/TextAppearance.Medium"
-            android:id="@+id/change_label"
-            android:textColor="@color/link"
-            android:text="@string/change"
-            android:layout_weight="0.25"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical|end"
-            android:gravity="end"/>
-    </LinearLayout>
+            <TextView
+                android:id="@+id/date_time"
+                style="@android:style/TextAppearance.Medium"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.75"
+                android:text="Monday 8/31/15 10:48 AM"/>
 
-    <!-- Separator -->
-    <View
-        android:id="@+id/sep1"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_below="@id/date_time_layout"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp"
-        android:background="@android:color/darker_gray"/>
+            <TextView
+                android:id="@+id/change_label"
+                style="@android:style/TextAppearance.Medium"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical|end"
+                android:layout_weight="0.25"
+                android:gravity="end"
+                android:text="@string/change"
+                android:textColor="@color/link"/>
+        </LinearLayout>
 
-    <!-- Hashtag view -->
-    <android.support.v7.widget.RecyclerView
-        android:id="@+id/hashtag_recyclerview"
-        android:layout_below="@id/sep1"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/hashtag_height"/>
-
-    <!-- Separator -->
-    <View
-        android:id="@+id/sep2"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_below="@id/hashtag_recyclerview"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp"
-        android:background="@android:color/darker_gray"/>
-
-    <!-- Edit area -->
-    <EditText
-        style="@android:style/TextAppearance.Large"
-        android:id="@+id/note_edit_text"
-        android:layout_below="@id/sep2"
-        android:layout_above="@+id/button_layout"
-        android:hint="@string/add_your_note_here"
-        android:background="@color/new_note_bg"
-        android:padding="8dp"
-        android:gravity="start|top"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:inputType="textMultiLine|textCapSentences"
-        >
-        <requestFocus/>
-    </EditText>
-
-    <!-- Post button -->
-    <LinearLayout
-        android:id="@+id/button_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_alignParentBottom="true">
+        <!-- Separator -->
         <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="0.65"/>
+            android:id="@+id/sep1"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_below="@id/date_time_layout"
+            android:layout_marginBottom="4dp"
+            android:layout_marginTop="4dp"
+            android:background="@android:color/darker_gray"/>
 
-        <Button
-            android:id="@+id/post_button"
-            android:text="@string/post"
-            android:layout_width="0dp"
+        <!-- Hashtag view -->
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/hashtag_recyclerview"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/hashtag_height"
+            android:layout_below="@id/sep1"/>
+
+        <!-- Separator -->
+        <View
+            android:id="@+id/sep2"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_below="@id/hashtag_recyclerview"
+            android:layout_marginBottom="4dp"
+            android:layout_marginTop="4dp"
+            android:background="@android:color/darker_gray"/>
+
+        <!-- Edit area -->
+        <EditText
+            android:id="@+id/note_edit_text"
+            style="@android:style/TextAppearance.Large"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.35"
-            android:padding="16dp"/>
-    </LinearLayout>
+            android:layout_above="@+id/button_layout"
+            android:layout_below="@id/sep2"
+            android:layout_marginBottom="16dp"
+            android:background="@color/new_note_bg"
+            android:gravity="start|top"
+            android:hint="@string/add_your_note_here"
+            android:inputType="textMultiLine|textCapSentences"
+            android:padding="8dp"
+            >
 
-</RelativeLayout>
+            <requestFocus/>
+        </EditText>
+
+        <!-- Post button -->
+        <LinearLayout
+            android:id="@+id/button_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="0.65"/>
+
+            <Button
+                android:id="@+id/post_button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.35"
+                android:padding="16dp"
+                android:text="@string/post"/>
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <!-- Hidden drop-down menu for selecting a user -->
+    <LinearLayout
+        android:id="@+id/layout_drop_down"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:animateLayoutChanges="true"
+        android:background="@color/drop_down_bg"
+        android:orientation="vertical"
+        android:visibility="invisible">
+
+        <ListView
+            android:id="@+id/listview_filter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/dropdown_list_bg"/>
+
+    </LinearLayout>
+</FrameLayout>

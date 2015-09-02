@@ -1,5 +1,6 @@
 package io.tidepool.urchin;
 
+import android.animation.Animator;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.os.Handler;
@@ -17,9 +18,12 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.TimePicker;
 
@@ -40,8 +44,11 @@ import java.util.Set;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Hashtag;
+import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
+import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
 
 public class NewNoteActivity extends AppCompatActivity {
@@ -52,8 +59,11 @@ public class NewNoteActivity extends AppCompatActivity {
 
     private EditText _noteEditText;
     private TextView _dateTimeTextView;
-    private Button _postButton;
     private RecyclerView _hashtagView;
+    private LinearLayout _dropDownLayout;
+    private ListView _dropDownListView;
+
+    private User _currentUser;
 
     private Date _noteTime;
     private Handler _formatTextHandler;
@@ -67,8 +77,10 @@ public class NewNoteActivity extends AppCompatActivity {
 
         _noteEditText = (EditText)findViewById(R.id.note_edit_text);
         _dateTimeTextView = (TextView)findViewById(R.id.date_time);
-        _postButton = (Button)findViewById(R.id.post_button);
         _hashtagView = (RecyclerView)findViewById(R.id.hashtag_recyclerview);
+        _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
+        _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+
         _formatTextHandler = new Handler();
 
         // Show a context menu for the date / time bar
@@ -99,7 +111,8 @@ public class NewNoteActivity extends AppCompatActivity {
         setupHashtags();
 
         // Make the hashtags look good in the note
-        // TODO: This seems kind of clunky having the delay. Without the delay it's almost unusable,
+        // TODO: Better hashtag formatting in edit text.
+        // This seems kind of clunky having the delay. Without the delay it's almost unusable,
         // though, as formatting the tags seems to take a long time. There's probably a more efficient
         // way to make this work...
         _noteEditText.addTextChangedListener(new TextWatcher() {
@@ -132,6 +145,27 @@ public class NewNoteActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // Set our current user to whatever is in the database, or the first user found if none exists
+        Realm realm = Realm.getInstance(this);
+        CurrentUser currentUser = realm.where(CurrentUser.class).findFirst();
+        if ( currentUser != null ) {
+            setCurrentUser(currentUser.getCurrentUser());
+        } else {
+            // Find a user that has a profile
+            RealmResults<User> users = realm.where(User.class).findAllSorted("fullName");
+            for ( User user : users ) {
+                if ( user.getProfile() != null && user.getProfile().getPatient() != null ) {
+                    setCurrentUser(user);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void setCurrentUser(User user) {
+        _currentUser = user;
+        setTitle(user.getProfile().getFullName());
     }
 
     private void formatText(String text, int selectionStart, int selectionEnd) {
@@ -148,13 +182,104 @@ public class NewNoteActivity extends AppCompatActivity {
         Log.d(LOG_TAG, "POST");
     }
 
+    private void populateDropDownList() {
+
+        // Make an adapter with the "extras": "sign out" and "all users".
+        List<User> users = UserFilterAdapter.createUserList(this);
+        _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users, false));
+        _dropDownListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                User user = (User) _dropDownListView.getAdapter().getItem(position);
+                setCurrentUser(user);
+                showDropDownMenu(false);
+            }
+        });
+
+    }
+    private void showDropDownMenu(boolean show) {
+        if ( show ) {
+            setTitle(R.string.note_for);
+            _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
+            _dropDownLayout.requestLayout();
+
+            _dropDownLayout.animate()
+                    .translationY(0)
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+                            _dropDownLayout.setVisibility(View.VISIBLE);
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+        } else {
+            setTitle(_currentUser.getProfile().getFullName());
+            _dropDownLayout.animate()
+                    .translationY(-_dropDownLayout.getHeight())
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                            _dropDownLayout.setTranslationY(0);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+        }
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
 
         // No menu for us.
-        menu.clear();
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if ( id == R.id.action_filter_notes ) {
+            if ( _dropDownLayout.getVisibility() == View.INVISIBLE ) {
+                populateDropDownList();
+                showDropDownMenu(true);
+            } else {
+                showDropDownMenu(false);
+            }
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
