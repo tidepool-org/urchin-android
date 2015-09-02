@@ -1,5 +1,6 @@
 package io.tidepool.urchin;
 
+import android.animation.Animator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -183,15 +184,71 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         int id = item.getItemId();
 
         if ( id == R.id.action_filter_notes ) {
-            if ( _dropDownLayout.getVisibility() == View.GONE ) {
+            if ( _dropDownLayout.getVisibility() == View.INVISIBLE ) {
                 populateDropDownList();
-                _dropDownLayout.setVisibility(View.VISIBLE);
+                showDropDownMenu(true);
             } else {
-                _dropDownLayout.setVisibility(View.GONE);
+                showDropDownMenu(false);
             }
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showDropDownMenu(boolean show) {
+        if ( show ) {
+            _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
+            _dropDownLayout.requestLayout();
+
+            _dropDownLayout.animate()
+                    .translationY(0)
+            .setListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    _dropDownLayout.setVisibility(View.VISIBLE);
+                }
+
+                @Override
+                public void onAnimationEnd(Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationCancel(Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(Animator animation) {
+
+                }
+            });
+        } else {
+            _dropDownLayout.animate()
+                    .translationY(-_dropDownLayout.getHeight())
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                            _dropDownLayout.setTranslationY(0);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+        }
     }
 
     @Override
@@ -308,7 +365,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     User user = (User) _dropDownListView.getAdapter().getItem(position);
                     setUserFilter(user);
                 }
-                _dropDownLayout.setVisibility(View.GONE);
+                showDropDownMenu(false);
             }
         });
     }
