@@ -1,7 +1,10 @@
 package io.tidepool.urchin.data;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
+import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
 
@@ -17,6 +20,9 @@ public class Note extends RealmObject {
     private String parentmessage;
     private Date timestamp;
     private String userid;
+
+    // Hashtags we parse when we get the Note from the server
+    private RealmList<Hashtag> hashtags;
 
     public Date getCreatedtime() {
         return createdtime;
@@ -80,5 +86,13 @@ public class Note extends RealmObject {
 
     public void setUserid(String userid) {
         this.userid = userid;
+    }
+
+    public RealmList<Hashtag> getHashtags() {
+        return hashtags;
+    }
+
+    public void setHashtags(RealmList<Hashtag> hashtags) {
+        this.hashtags = hashtags;
     }
 }

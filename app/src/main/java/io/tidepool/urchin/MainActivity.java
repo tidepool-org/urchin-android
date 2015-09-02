@@ -1,46 +1,53 @@
 package io.tidepool.urchin;
 
+import android.animation.Animator;
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.CardView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 
-import org.w3c.dom.Text;
-
+import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import io.realm.Realm;
 import io.realm.RealmChangeListener;
 import io.realm.RealmList;
 import io.realm.RealmResults;
 import io.tidepool.urchin.api.APIClient;
+import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.Profile;
-import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
+import io.tidepool.urchin.ui.UserFilterAdapter;
+import io.tidepool.urchin.util.HashtagUtils;
 
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
@@ -53,13 +60,17 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private APIClient _apiClient;
 
+    // User to filter messages on, or null for all messages
+    private User _userFilter;
+
     // UI stuff
     private RecyclerView _recyclerView;
     private ImageButton _addButton;
     private RealmResults<Note> _notesResultSet;
     private SwipeRefreshLayout _swipeRefreshLayout;
-
-    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.US);
+    private LinearLayout _dropDownLayout;
+    private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
+    private ListView _dropDownListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +83,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _swipeRefreshLayout = (SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
         _swipeRefreshLayout.setOnRefreshListener(this);
 
+        _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
+        _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+
         _addButton = (ImageButton)findViewById(R.id.add_button);
         _addButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -80,7 +94,27 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
         });
 
-        Realm realm = Realm.getInstance(this);
+        // For now, we are going to blow away our database on an update
+        Realm realm = null;
+        try {
+            realm = Realm.getInstance(this);
+        } catch (RuntimeException e) {
+            Log.e(LOG_TAG, "Failed to load realm database. Blowing away and trying anew.");
+            File dbPath = getFilesDir();
+            File dbFile = new File(dbPath, "default.realm");
+            boolean deleted = dbFile.delete();
+            Log.e(LOG_TAG, "dbFile: " + dbFile.getPath() + " deleted: " + deleted);
+
+            // Try again, this time we'll just blow up if it doesn't work
+            try {
+                realm = Realm.getInstance(this);
+            } catch (RuntimeException eInner) {
+                Log.e(LOG_TAG, "Failed to open / update the Realm database. Re-throwing.");
+                e.printStackTrace();
+                throw(eInner);
+            }
+        }
+
 
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, SERVER);
@@ -93,29 +127,50 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         } else {
             updateUser();
         }
+
+        // Select the current user, if present in the db
+        CurrentUser current = realm.where(CurrentUser.class).findFirst();
+        if ( current != null ) {
+            setUserFilter(current.getCurrentUser());
+        } else {
+            setTitle(R.string.all_notes);
+        }
+        realm.close();
     }
 
-    protected void startQuery() {
+    protected void populateNotes() {
         Realm realm = Realm.getInstance(this);
 
         // Set up our query
-        _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
+        if ( _userFilter == null ) {
+            _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
+            setTitle(R.string.all_notes);
+        } else {
+            _notesResultSet = realm.where(Note.class).equalTo("userid", _userFilter.getUserid())
+                    .findAllSorted("timestamp", false);
+            setTitle(_userFilter.getProfile().getFullName());
+        }
+
         _recyclerView.setAdapter(new NotesAdapter());
+        realm.close();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        startQuery();
+        populateNotes();
         Realm realm = Realm.getInstance(this);
         realm.addChangeListener(this);
+        realm.close();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        _swipeRefreshLayout.setRefreshing(false);
         Realm realm = Realm.getInstance(this);
         realm.removeChangeListener(this);
+        realm.close();
     }
 
     @Override
@@ -132,19 +187,73 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_sign_out) {
-            _apiClient.signOut(new APIClient.SignOutListener() {
-                @Override
-                public void signedOut(int responseCode, Exception error) {
-                    Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
-                    startActivityForResult(loginIntent, REQ_LOGIN);
-                }
-            });
+        if ( id == R.id.action_filter_notes ) {
+            if ( _dropDownLayout.getVisibility() == View.INVISIBLE ) {
+                populateDropDownList();
+                showDropDownMenu(true);
+            } else {
+                showDropDownMenu(false);
+            }
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showDropDownMenu(boolean show) {
+        if ( show ) {
+            _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
+            _dropDownLayout.requestLayout();
+
+            _dropDownLayout.animate()
+                    .translationY(0)
+            .setListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    _dropDownLayout.setVisibility(View.VISIBLE);
+                }
+
+                @Override
+                public void onAnimationEnd(Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationCancel(Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(Animator animation) {
+
+                }
+            });
+        } else {
+            _dropDownLayout.animate()
+                    .translationY(-_dropDownLayout.getHeight())
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                            _dropDownLayout.setTranslationY(0);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
+                            _dropDownLayout.setVisibility(View.INVISIBLE);
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
+
+                        }
+                    });
+        }
     }
 
     @Override
@@ -168,6 +277,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     protected void addButtonTapped() {
         Log.d(LOG_TAG, "Add Tapped");
+        Intent intent = new Intent(this, NewNoteActivity.class);
+        startActivity(intent);
     }
 
     /**
@@ -206,7 +317,57 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     }
                 });
             }
+        } else {
+            _swipeRefreshLayout.setRefreshing(false);
         }
+    }
+
+    private void populateDropDownList() {
+
+        // Make an adapter with the "extras": "sign out" and "all users".
+        List<User> users = UserFilterAdapter.createUserList(this);
+        _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users, true));
+        _dropDownListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    // All users
+                    setUserFilter(null);
+                } else if (position == parent.getAdapter().getCount() - 1) {
+                    signOut();
+                } else {
+                    User user = (User) _dropDownListView.getAdapter().getItem(position);
+                    setUserFilter(user);
+                }
+                showDropDownMenu(false);
+            }
+        });
+    }
+
+    private void setUserFilter(User user) {
+        // Set the current user in the database
+        Realm realm = Realm.getInstance(this);
+        realm.beginTransaction();
+        realm.where(CurrentUser.class).findAll().clear();
+        CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
+        newCurrentUser.setCurrentUser(user);
+        realm.commitTransaction();
+        realm.close();
+
+        // Set our local copy and update the list of notes
+        _userFilter = user;
+        populateNotes();
+    }
+
+    private void signOut() {
+        _userFilter = null;
+        _apiClient.signOut(new APIClient.SignOutListener() {
+            @Override
+            public void signedOut(int responseCode, Exception error) {
+                Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
+                startActivityForResult(loginIntent, REQ_LOGIN);
+            }
+        });
     }
 
     @Override
@@ -269,7 +430,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         public void onBindViewHolder(NotesViewHolder notesViewHolder, int i) {
             Note note = _notesResultSet.get(i);
             SpannableString bodyText = new SpannableString(note.getMessagetext());
-            formatHashtags(bodyText);
+            int color = getResources().getColor(R.color.hashtag_text);
+            HashtagUtils.formatHashtags(bodyText, color, true);
             notesViewHolder._body.setText(bodyText, TextView.BufferType.SPANNABLE);
 
             Realm realm = Realm.getInstance(MainActivity.this);
@@ -291,7 +453,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
 
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
-            //notesViewHolder.itemView.setBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+            CardView cardView = (CardView)notesViewHolder.itemView;
+            cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
+
+            realm.close();
         }
 
         @Override
@@ -299,33 +464,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             return _notesResultSet.size();
         }
 
-        void formatHashtags(SpannableString text) {
-            int color = getResources().getColor(R.color.hashtag_text);
-            int startSpan = -1;
-            for ( int i = 0; i < text.length(); i++ ) {
-                Character c = text.charAt(i);
-                if ( startSpan == -1 ) {
-                    // We're looking for a hashtag
-                    if ( c.equals('#') ) {
-                        startSpan = i;
-                    }
-                } else {
-                    // We're looking for whitespace
-                    if ( Character.isWhitespace(c) ) {
-                        // Found it. Add the span.
-                        text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        startSpan = -1;
-                    }
-                }
-            }
-            if ( startSpan != -1 ) {
-                // Hashtag was last
-                text.setSpan(new ForegroundColorSpan(color), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-        }
     }
+
 
     @Override
     public void onChange() {

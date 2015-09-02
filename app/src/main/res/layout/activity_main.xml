@@ -26,6 +26,24 @@
 
         </android.support.v4.widget.SwipeRefreshLayout>
 
+        <!-- Hidden drop-down menu for filtering notes -->
+        <LinearLayout
+            android:id="@+id/layout_drop_down"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="invisible"
+            android:animateLayoutChanges="true"
+            android:background="@color/drop_down_bg">
+
+            <ListView
+                android:id="@+id/listview_filter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/dropdown_list_bg"/>
+
+        </LinearLayout>
+
     </FrameLayout>
 
     <ImageButton

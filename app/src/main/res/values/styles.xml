@@ -25,7 +25,7 @@
     </style>
 
     <style name="NoteAuthorText" parent="@android:style/TextAppearance.Large">
-        <item name="android:textStyle">bold</item>
+
     </style>
 
     <style name="NoteDateText" parent="@android:style/TextAppearance.Small">
