@@ -2,8 +2,10 @@
       xmlns:app="http://schemas.android.com/apk/res-auto"
       xmlns:tools="http://schemas.android.com/tools"
       tools:context=".MainActivity">
-    <item android:id="@+id/action_sign_out"
-          android:title="@string/action_sign_out"
+
+    <item android:id="@+id/action_filter_notes"
+          android:title="@string/action_filter_notes"
+          android:icon="@drawable/down"
           android:orderInCategory="100"
-          app:showAsAction="never"/>
+          app:showAsAction="always"/>
 </menu>

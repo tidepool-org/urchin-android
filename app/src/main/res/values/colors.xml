@@ -59,5 +59,7 @@
     <color name="button_selected_end">@color/app_theme_primary</color>
     <color name="button_disabled_start">@color/grey_500</color>
     <color name="button_disabled_end">@color/grey_500</color>
+    <color name="drop_down_bg">#88000000</color>
+    <color name="dropdown_list_bg">@color/app_theme_primary</color>
 
 </resources>

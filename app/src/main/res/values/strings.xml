@@ -17,6 +17,7 @@
     <string name="action_change_time">Change Time</string>
     <string name="action_change_date">Change Date</string>
     <string name="note_date">Note Date</string>
+    <string name="action_filter_notes">Show notes from...</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">
