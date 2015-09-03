@@ -361,6 +361,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private void signOut() {
         _userFilter = null;
+        _dropDownListView.setAdapter(null);
+        _recyclerView.setAdapter(null);
         _apiClient.signOut(new APIClient.SignOutListener() {
             @Override
             public void signedOut(int responseCode, Exception error) {
@@ -470,6 +472,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     @Override
     public void onChange() {
         // Realm dataset has changed. Refresh our data
-        _recyclerView.getAdapter().notifyDataSetChanged();
+        if ( _recyclerView.getAdapter() != null ) {
+            _recyclerView.getAdapter().notifyDataSetChanged();
+        }
     }
 }
