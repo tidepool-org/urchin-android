@@ -85,6 +85,13 @@ public class NewNoteActivity extends AppCompatActivity {
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
 
+        _dropDownLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showDropDownMenu(false);
+            }
+        });
+
         _formatTextHandler = new Handler();
 
         // Show a context menu for the date / time bar

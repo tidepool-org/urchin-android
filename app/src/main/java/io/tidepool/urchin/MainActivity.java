@@ -97,6 +97,12 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _swipeRefreshLayout.setOnRefreshListener(this);
 
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
+        _dropDownLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showDropDownMenu(false);
+            }
+        });
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
 
         _addButton = (ImageButton)findViewById(R.id.add_button);
