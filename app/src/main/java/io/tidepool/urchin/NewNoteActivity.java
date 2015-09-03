@@ -165,11 +165,23 @@ public class NewNoteActivity extends AppCompatActivity {
                 }
             }
         }
+        realm.close();
     }
 
     private void setCurrentUser(User user) {
         _currentUser = user;
         setTitle(user.getProfile().getFullName());
+        Realm realm = Realm.getInstance(this);
+        realm.beginTransaction();
+        RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
+        if ( results.size() > 0 ) {
+            results.clear();
+        }
+
+        CurrentUser u = realm.createObject(CurrentUser.class);
+        u.setCurrentUser(user);
+        realm.commitTransaction();
+        realm.close();
     }
 
     private void formatText(String text, int selectionStart, int selectionEnd) {
@@ -223,6 +235,17 @@ public class NewNoteActivity extends AppCompatActivity {
         });
 
     }
+
+    @Override
+    public void onBackPressed() {
+        // Let the back button dismiss the drop-down menu if present
+        if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
+            showDropDownMenu(false);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
     private void showDropDownMenu(boolean show) {
         if ( show ) {
             setTitle(R.string.note_for);

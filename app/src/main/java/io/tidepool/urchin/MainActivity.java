@@ -148,7 +148,28 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         } else {
             setTitle(R.string.all_notes);
         }
+
+        // BSK: We will leave the realm instance open for the lifetime of this activity,
+        // and will perform an extra close() in onDestroy().
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Close out the dangling getInstance() from onCreate()
+        Realm realm = Realm.getInstance(this);
         realm.close();
+        realm.close();
+    }
+
+    @Override
+    public void onBackPressed() {
+        // Let the back button dismiss the drop-down menu if present
+        if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
+            showDropDownMenu(false);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     protected void populateNotes() {
@@ -172,6 +193,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     protected void onStart() {
         super.onStart();
         populateNotes();
+
         Realm realm = Realm.getInstance(this);
         realm.addChangeListener(this);
         realm.close();
@@ -363,7 +385,12 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         realm.beginTransaction();
         realm.where(CurrentUser.class).findAll().clear();
         CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
-        newCurrentUser.setCurrentUser(user);
+        if ( user == null ) {
+            // We want a real user object in here- it's the logged-in user.
+            newCurrentUser.setCurrentUser(_apiClient.getUser());
+        } else {
+            newCurrentUser.setCurrentUser(user);
+        }
         realm.commitTransaction();
         realm.close();
 

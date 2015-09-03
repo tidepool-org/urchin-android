@@ -157,10 +157,13 @@ public class APIClient {
         RealmResults<Session> results = realm.where(Session.class)
                 .findAll();
         if ( results.size() == 0 ) {
+            realm.close();
             return null;
         }
 
-        return results.first().getUser();
+        User user = results.first().getUser();
+        realm.close();
+        return user;
     }
 
     /**
@@ -176,7 +179,9 @@ public class APIClient {
         }
 
         Session session = results.first();
-        return session.getSessionId();
+        String sessionId = session.getSessionId();
+        realm.close();
+        return sessionId;
     }
 
     public static abstract class SignInListener {
@@ -206,6 +211,7 @@ public class APIClient {
         realm.beginTransaction();
         realm.where(Session.class).findAll().clear();
         realm.commitTransaction();
+        realm.close();
 
         // Create the authorization header with base64-encoded username:password
         final Map<String, String> headers = getHeaders();
@@ -246,6 +252,7 @@ public class APIClient {
                 User copiedUser = realm.copyToRealmOrUpdate(user);
                 s.setUser(copiedUser);
                 realm.commitTransaction();
+                realm.close();
                 listener.signInComplete(user, null);
             }
         }, new Response.ErrorListener() {
@@ -262,12 +269,20 @@ public class APIClient {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
                 if ( sessionId != null ) {
                     Realm realm = Realm.getInstance(_context);
-                    // Create the session in the database
+
                     realm.beginTransaction();
+
+                    // Get rid of any old sessions
+                    realm.where(Session.class).findAll().clear();
+
+                    // Create the session in the database
                     Session s = realm.createObject(Session.class);
                     s.setSessionId(sessionId);
+                    Log.d(LOG_TAG, "Session ID: " + sessionId);
                     s.setKey(Session.SESSION_KEY);
+
                     realm.commitTransaction();
+                    realm.close();
                 }
                 return super.parseNetworkResponse(response);
             }
@@ -363,17 +378,17 @@ public class APIClient {
 
                 Realm realm = Realm.getInstance(_context);
                 realm.beginTransaction();
-                realm.copyToRealmOrUpdate(note);
+                Note sentNote = realm.copyToRealmOrUpdate(note);
 
                 // Update the hashtags for this note.
-                List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
+                List<Hashtag> hashtags = HashtagUtils.parseHashtags(sentNote.getMessagetext());
                 for ( Hashtag hash : hashtags ) {
-                    hash.setOwnerId(note.getUserid());
-                    note.getHashtags().add(hash);
+                    hash.setOwnerId(sentNote.getUserid());
+                    sentNote.getHashtags().add(hash);
                 }
                 realm.commitTransaction();
                 realm.close();
-                listener.notePosted(note, null);
+                listener.notePosted(sentNote, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -503,34 +518,38 @@ public class APIClient {
         StringRequest req = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
+                Realm realm = Realm.getInstance(_context);
+                JSONObject jsonObject = null;
                 try {
-                    JSONObject jsonObject = new JSONObject(response);
-                    RealmList<SharedUserId> userIds = new RealmList<>();
-                    Iterator iter = jsonObject.keys();
-
-                    Realm realm = Realm.getInstance(_context);
-                    User user = getUser();
-
-                    realm.beginTransaction();
-
-                    // Out with the old
-                    realm.where(SharedUserId.class).findAll().clear();
-
-                    while ( iter.hasNext() ) {
-                        String viewableId = (String)iter.next();
-                        userIds.add(new SharedUserId(viewableId));
-                    }
-
-                    // Put the IDs into the database
-                    user.getViewableUserIds().removeAll(user.getViewableUserIds());
-                    user.getViewableUserIds().addAll(userIds);
-
-                    realm.commitTransaction();
-
-                    listener.fetchComplete(userIds, null);
+                    Log.d(LOG_TAG, "Groups: " + response);
+                    jsonObject = new JSONObject(response);
                 } catch (JSONException e) {
                     listener.fetchComplete(null, e);
+                    return;
                 }
+
+                RealmList<SharedUserId> userIds = new RealmList<>();
+                Iterator iter = jsonObject.keys();
+
+                User user = getUser();
+
+                realm.beginTransaction();
+
+                // Out with the old
+                realm.where(SharedUserId.class).findAll().clear();
+
+                while ( iter.hasNext() ) {
+                    String viewableId = (String)iter.next();
+                    userIds.add(new SharedUserId(viewableId));
+                }
+
+                // Put the IDs into the database
+                user.getViewableUserIds().removeAll(user.getViewableUserIds());
+                user.getViewableUserIds().addAll(userIds);
+
+                realm.commitTransaction();
+
+                listener.fetchComplete(userIds, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -558,7 +577,9 @@ public class APIClient {
         try {
             url = new URL(getBaseURL(), "/metadata/" + userId + "/profile").toString();
         } catch (MalformedURLException e) {
-            listener.profileReceived(null, e);
+            if ( listener != null ) {
+                listener.profileReceived(null, e);
+            }
             return null;
         }
 
@@ -581,14 +602,18 @@ public class APIClient {
                 }
                 user.setProfile(profile);
                 realm.commitTransaction();
-
-                listener.profileReceived(profile, null);
+                if ( listener != null ) {
+                    listener.profileReceived(profile, null);
+                }
+                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(LOG_TAG, "Profile error: " + error);
-                listener.profileReceived(null, error);
+                if ( listener != null ) {
+                    listener.profileReceived(null, error);
+                }
             }
         }) {
             @Override
@@ -656,15 +681,33 @@ public class APIClient {
                             hash.setOwnerId(userId);
                             note.getHashtags().add(hash);
                         }
+
+                        // See if we're missing any users that are mentioned in the note
+                        // Check the note author (userid)
+                        RealmResults userSearch = realm.where(User.class).equalTo("userid", note.getUserid()).findAll();
+                        if ( userSearch.size() == 0 ) {
+                            Log.d(LOG_TAG, "Getting profile for user: " + note.getUserid());
+                            getProfileForUserId(note.getUserid(), null);
+                        }
+
+                        // Also check the group (groupid)
+                        userSearch = realm.where(User.class).equalTo("userid", note.getGroupid()).findAll();
+                        if ( userSearch.size() == 0 ) {
+                            Log.d(LOG_TAG, "Getting profile for group: " + note.getGroupid());
+                            getProfileForUserId(note.getGroupid(), null);
+                        }
                         noteList.add(note);
                     }
                 } catch (JSONException e) {
                     realm.cancelTransaction();
                     listener.notesReceived(null, e);
+                    realm.close();
+                    return;
                 }
 
                 realm.commitTransaction();
                 listener.notesReceived(noteList, null);
+                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
@@ -697,6 +740,8 @@ public class APIClient {
         if ( sessionId != null ) {
             headers.put(HEADER_SESSION_ID, sessionId);
         }
+
+        Log.d(LOG_TAG, "Headers: " + headers);
         return headers;
     }
 }
