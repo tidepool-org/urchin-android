@@ -72,9 +72,22 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
     private ListView _dropDownListView;
 
+    // Access to our instance
+    private static MainActivity __thisInstance;
+    public static MainActivity getInstance() {
+        return __thisInstance;
+    }
+    // Provide access to our APIClient
+    public  APIClient getAPIClient() {
+        return _apiClient;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        __thisInstance = this;
+
         setContentView(R.layout.activity_main);
 
         _recyclerView = (RecyclerView)findViewById(R.id.recycler_view);

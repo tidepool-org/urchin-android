@@ -26,6 +26,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -41,11 +42,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Hashtag;
+import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
@@ -180,6 +184,27 @@ public class NewNoteActivity extends AppCompatActivity {
 
     private void postClicked() {
         Log.d(LOG_TAG, "POST");
+        APIClient api = MainActivity.getInstance().getAPIClient();
+        Note note = new Note();
+        note.setGroupid(_currentUser.getUserid());
+        note.setMessagetext(_noteEditText.getText().toString());
+        note.setTimestamp(_noteTime);
+        note.setUserid(api.getUser().getUserid());
+        note.setGuid(UUID.randomUUID().toString());
+
+        api.postNote(note, new APIClient.PostNoteListener() {
+            @Override
+            public void notePosted(Note note, Exception error) {
+                if (error == null) {
+                    // Note was posted.
+                    Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
+                    finish();
+                } else {
+                    String errorMessage = getResources().getString(R.string.error_posting, error.getMessage());
+                    Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
     }
 
     private void populateDropDownList() {
@@ -384,7 +409,11 @@ public class NewNoteActivity extends AppCompatActivity {
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
         for ( String tagName : sortedTags ) {
-            Hashtag tag = realm.where(Hashtag.class).equalTo("tag", tagName).findAll().first();
+            RealmResults<Hashtag> results = realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
+            Hashtag tag = null;
+            if ( results.size() > 0 ) {
+                tag = results.first();
+            }
             if ( tag == null ) {
                 // Probably one of our default tags- they're not in the database.
                 tag = new Hashtag(tagName);

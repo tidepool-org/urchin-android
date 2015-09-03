@@ -328,6 +328,82 @@ public class APIClient {
         return req;
     }
 
+    public static abstract class PostNoteListener {
+        public abstract void notePosted(Note note, Exception error);
+    }
+    public Request postNote(final Note note, final PostNoteListener listener) {
+        // Build the URL for login
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/send/" + note.getGroupid()).toString();
+        } catch (MalformedURLException e) {
+            listener.notePosted(null, e);
+            return null;
+        }
+
+        final String noteJson = getGson(MESSAGE_DATE_FORMAT).toJson(note);
+
+        StringRequest request = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                // Add the message to the database
+                Log.d(LOG_TAG, "Post note response data: " + response);
+
+                // The repsonse only contains the ID.
+                String noteId = null;
+                try {
+                    JSONObject noteIdobject = new JSONObject(response);
+                    noteId = noteIdobject.getString("id");
+                    note.setId(noteId);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    listener.notePosted(null, e);
+                    return;
+                }
+
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                realm.copyToRealmOrUpdate(note);
+
+                // Update the hashtags for this note.
+                List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
+                for ( Hashtag hash : hashtags ) {
+                    hash.setOwnerId(note.getUserid());
+                    note.getHashtags().add(hash);
+                }
+                realm.commitTransaction();
+                realm.close();
+                listener.notePosted(note, null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e(LOG_TAG, "Failed to post message: " + error);
+                listener.notePosted(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+
+            @Override
+            public byte[] getBody() throws AuthFailureError {
+                String bodyText = "{\"message\":" + noteJson + "}";
+                Log.d(LOG_TAG, "Message post text: " + bodyText);
+                return bodyText.getBytes();
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
     public void clearDatabase() {
         // Clean  out the database
         Realm realm = Realm.getInstance(_context);
@@ -550,6 +626,8 @@ public class APIClient {
             @Override
             public void onResponse(String json) {
                 // Returned JSON is an object array called "messages"
+                Log.d(LOG_TAG, "Messages response:" + json);
+
                 Realm realm = Realm.getInstance(_context);
                 RealmList<Note> noteList = new RealmList<>();
                 realm.beginTransaction();
