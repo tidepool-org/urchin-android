@@ -48,6 +48,7 @@ import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
+import io.tidepool.urchin.util.MiscUtils;
 
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
@@ -152,7 +153,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         if ( current != null ) {
             setUserFilter(current.getCurrentUser());
         } else {
-            setTitle(R.string.all_notes);
+            String title = getResources().getString(R.string.all_notes);
+            title = title + " - " + MiscUtils.getPrintableNameForUser(user);
+            setTitle(title);
         }
 
         // BSK: We will leave the realm instance open for the lifetime of this activity,
@@ -184,7 +187,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // Set up our query
         if ( _userFilter == null ) {
             _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
-            setTitle(R.string.all_notes);
+            String title = getResources().getString(R.string.all_notes);
+            title = title + " - " + MiscUtils.getPrintableNameForUser(_apiClient.getUser());
+            setTitle(title);
+
         } else {
             _notesResultSet = realm.where(Note.class).equalTo("userid", _userFilter.getUserid())
                     .findAllSorted("timestamp", false);
@@ -243,6 +249,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private void showDropDownMenu(boolean show) {
         if ( show ) {
+            _addButton.setVisibility(View.INVISIBLE);
             _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
             _dropDownLayout.requestLayout();
 
@@ -270,6 +277,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 }
             });
         } else {
+            _addButton.setVisibility(View.VISIBLE);
             _dropDownLayout.animate()
                     .translationY(-_dropDownLayout.getHeight())
                     .setListener(new Animator.AnimatorListener() {
@@ -440,34 +448,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     public class NotesAdapter extends RecyclerView.Adapter<NotesViewHolder> {
 
-        public String getPrintableNameForUser(User user) {
-            String name = null;
-            if ( user != null ) {
-                Profile profile = user.getProfile();
-                if (profile != null) {
-                    name = profile.getFullName();
-                    if (!TextUtils.isEmpty(name)) {
-                        return name;
-                    }
-                    name = profile.getFirstName() + " " + profile.getLastName();
-                } else {
-                    name = user.getFullName();
-                    if (TextUtils.isEmpty(name)) {
-                        name = user.getUsername();
-                    }
-                }
-                if ( TextUtils.isEmpty(name) ) {
-                    name = "[" + user.getUserid() + "]";
-                }
-            }
-
-            if ( TextUtils.isEmpty(name) ) {
-                name = "UNKNOWN";
-            }
-
-            return name;
-        }
-
         @Override
         public NotesViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
             View v = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.cardview_note, viewGroup, false);
@@ -493,9 +473,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
 
             if ( group != null ) {
-                notesViewHolder._author.setText(getPrintableNameForUser(user) + " to " + getPrintableNameForUser(group));
+                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user) + " to " + MiscUtils.getPrintableNameForUser(group));
             } else {
-                notesViewHolder._author.setText(getPrintableNameForUser(user));
+                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user));
             }
 
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
