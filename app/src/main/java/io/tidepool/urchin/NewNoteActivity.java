@@ -1,8 +1,10 @@
 package io.tidepool.urchin;
 
 import android.animation.Animator;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.DialogInterface;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -26,6 +28,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -41,11 +44,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Hashtag;
+import io.tidepool.urchin.data.Note;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
@@ -53,6 +59,9 @@ import io.tidepool.urchin.util.HashtagUtils;
 
 public class NewNoteActivity extends AppCompatActivity {
     private static final String LOG_TAG = "NewNote";
+
+    // Arguments we can take to edit instead of create a new note
+    public static final String ARG_EDIT_NOTE_ID = "EditNoteId";         // The ID of the note to edit
 
     private static final int MAX_TAGS = 50;         // Most tags we will show in the scrolling list
     private static final int FORMAT_TIMEOUT = 1000; // Delay we wait to see if the user has stopped typing
@@ -62,6 +71,7 @@ public class NewNoteActivity extends AppCompatActivity {
     private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
+    private Button _postButton;
 
     private User _currentUser;
 
@@ -69,6 +79,8 @@ public class NewNoteActivity extends AppCompatActivity {
     private Handler _formatTextHandler;
 
     private boolean _updatingText;                  // So we don't update text recursively
+
+    private Note _editingNote;                      // Null for a new note
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +92,13 @@ public class NewNoteActivity extends AppCompatActivity {
         _hashtagView = (RecyclerView)findViewById(R.id.hashtag_recyclerview);
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+
+        _dropDownLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showDropDownMenu(false);
+            }
+        });
 
         _formatTextHandler = new Handler();
 
@@ -96,7 +115,8 @@ public class NewNoteActivity extends AppCompatActivity {
         });
 
         // Respond to the button
-        findViewById(R.id.post_button).setOnClickListener(new View.OnClickListener() {
+        _postButton = (Button)findViewById(R.id.post_button);
+        _postButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 postClicked();
@@ -161,11 +181,46 @@ public class NewNoteActivity extends AppCompatActivity {
                 }
             }
         }
+        realm.close();
+
+        // See if we were launched to create a new note, or to edit an existing one
+        Bundle args = getIntent().getExtras();
+        if ( args != null ) {
+            String messageId = args.getString(ARG_EDIT_NOTE_ID);
+            if (messageId != null) {
+                setEditing(messageId);
+            }
+        }
+    }
+
+    private void setEditing(String messageId) {
+        Realm realm = Realm.getInstance(this);
+        Note note = realm.where(Note.class).equalTo("id", messageId).findFirst();
+        User author = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
+        setCurrentUser(author);
+        _noteTime = note.getTimestamp();
+        setDateTimeText(_noteTime);
+        SpannableString ss = new SpannableString(note.getMessagetext());
+        HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
+        _noteEditText.setText(ss);
+        _postButton.setText(R.string.button_save);
+        _editingNote = note;
     }
 
     private void setCurrentUser(User user) {
         _currentUser = user;
         setTitle(user.getProfile().getFullName());
+        Realm realm = Realm.getInstance(this);
+        realm.beginTransaction();
+        RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
+        if ( results.size() > 0 ) {
+            results.clear();
+        }
+
+        CurrentUser u = realm.createObject(CurrentUser.class);
+        u.setCurrentUser(user);
+        realm.commitTransaction();
+        realm.close();
     }
 
     private void formatText(String text, int selectionStart, int selectionEnd) {
@@ -180,6 +235,46 @@ public class NewNoteActivity extends AppCompatActivity {
 
     private void postClicked() {
         Log.d(LOG_TAG, "POST");
+        APIClient api = MainActivity.getInstance().getAPIClient();
+        Note note = new Note();
+        note.setGroupid(_currentUser.getUserid());
+        note.setMessagetext(_noteEditText.getText().toString());
+        note.setTimestamp(_noteTime);
+        note.setUserid(api.getUser().getUserid());
+        note.setGuid(UUID.randomUUID().toString());
+
+        if ( _editingNote == null ) {
+            // We are creating a new note
+            api.postNote(note, new APIClient.PostNoteListener() {
+                @Override
+                public void notePosted(Note note, Exception error) {
+                    if (error == null) {
+                        // Note was posted.
+                        Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        String errorMessage = getResources().getString(R.string.error_posting, error.getMessage());
+                        Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        } else {
+            // We are updating an existing note
+            note.setId(_editingNote.getId());
+            api.updateNote(note, new APIClient.UpdateNoteListener() {
+                @Override
+                public void noteUpdated(Note note, Exception error) {
+                    if (error == null) {
+                        // Note was posted.
+                        Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        String errorMessage = getResources().getString(R.string.error_updating, error.getMessage());
+                        Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        }
     }
 
     private void populateDropDownList() {
@@ -198,6 +293,17 @@ public class NewNoteActivity extends AppCompatActivity {
         });
 
     }
+
+    @Override
+    public void onBackPressed() {
+        // Let the back button dismiss the drop-down menu if present
+        if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
+            showDropDownMenu(false);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
     private void showDropDownMenu(boolean show) {
         if ( show ) {
             setTitle(R.string.note_for);
@@ -262,7 +368,11 @@ public class NewNoteActivity extends AppCompatActivity {
 
         // No menu for us.
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
+        if ( _editingNote == null ) {
+            inflater.inflate(R.menu.menu_main, menu);
+        } else {
+            inflater.inflate(R.menu.menu_edit_note, menu);
+        }
         return true;
     }
 
@@ -277,6 +387,22 @@ public class NewNoteActivity extends AppCompatActivity {
                 showDropDownMenu(false);
             }
             return true;
+        }
+
+        if ( id == R.id.action_delete_note ) {
+            Log.d(LOG_TAG, "Delete Note");
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.action_delete_note)
+                    .setMessage(R.string.delete_note_confirm)
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            deleteNote();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.no, null)
+                    .setIcon(getResources().getDrawable(R.mipmap.ic_launcher))
+                    .show();
         }
 
         return super.onOptionsItemSelected(item);
@@ -304,6 +430,21 @@ public class NewNoteActivity extends AppCompatActivity {
                 return super.onContextItemSelected(item);
         }
         return true;
+    }
+
+    private void deleteNote() {
+        // We're deleting the note we are currently editing.
+        MainActivity.getInstance().getAPIClient().deleteNote(_editingNote, new APIClient.DeleteNoteListener() {
+            @Override
+            public void noteDeleted(Exception error) {
+                if ( error == null ) {
+                    Toast.makeText(NewNoteActivity.this, R.string.note_deleted, Toast.LENGTH_LONG).show();
+                    finish();
+                } else {
+                    Toast.makeText(NewNoteActivity.this, R.string.note_deleted_error, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
     }
 
     private void setDateTimeText(Date when) {
@@ -384,7 +525,11 @@ public class NewNoteActivity extends AppCompatActivity {
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
         for ( String tagName : sortedTags ) {
-            Hashtag tag = realm.where(Hashtag.class).equalTo("tag", tagName).findAll().first();
+            RealmResults<Hashtag> results = realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
+            Hashtag tag = null;
+            if ( results.size() > 0 ) {
+                tag = results.first();
+            }
             if ( tag == null ) {
                 // Probably one of our default tags- they're not in the database.
                 tag = new Hashtag(tagName);

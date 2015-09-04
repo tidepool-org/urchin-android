@@ -21,6 +21,7 @@ import io.realm.Realm;
 import io.realm.RealmResults;
 import io.tidepool.urchin.R;
 import io.tidepool.urchin.data.Profile;
+import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 
 /**
@@ -59,22 +60,14 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
         // Get all of the profiles that do not have a null patient field. These are the only users
         // who can post a message.
-        RealmResults<Profile> profiles = realm.where(Profile.class).isNotNull("patient").findAll();
+        RealmResults<SharedUserId> sharedUserIds = realm.where(SharedUserId.class).findAll();
 
-        // Create a set of user IDs from these profiles
-        Set<String> userIds = new HashSet<>();
-        for ( Profile profile : profiles ) {
-            userIds.add(profile.getUserId());
-        }
-
-        // Now get our list of users
+        // Create a set of users from this list that have patient fields in their profiles
         List<User> users = new ArrayList<>();
-        for ( String userId : userIds ) {
-            User user = realm.where(User.class).equalTo("userid", userId).findFirst();
-            if ( user != null ) {
+        for ( SharedUserId sharedUserId : sharedUserIds ) {
+            User user = realm.where(User.class).equalTo("userid", sharedUserId.getVal()).findFirst();
+            if ( user != null && user.getProfile() != null && user.getProfile().getPatient() != null ) {
                 users.add(user);
-            } else {
-                Log.e(LOG_TAG, "Failed to find user with ID " + userId);
             }
         }
 
@@ -131,7 +124,9 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
         TextView nameText = (TextView)v.findViewById(R.id.name_textview);
         String name = user.getFullName();
         if (TextUtils.isEmpty(name)){
-            name = user.getProfile().getFullName();
+            if ( user.getProfile() != null ) {
+                name = user.getProfile().getFullName();
+            }
         }
         nameText.setText(name);
 

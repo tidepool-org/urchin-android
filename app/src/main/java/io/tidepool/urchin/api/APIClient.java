@@ -157,10 +157,13 @@ public class APIClient {
         RealmResults<Session> results = realm.where(Session.class)
                 .findAll();
         if ( results.size() == 0 ) {
+            realm.close();
             return null;
         }
 
-        return results.first().getUser();
+        User user = results.first().getUser();
+        realm.close();
+        return user;
     }
 
     /**
@@ -176,7 +179,9 @@ public class APIClient {
         }
 
         Session session = results.first();
-        return session.getSessionId();
+        String sessionId = session.getSessionId();
+        realm.close();
+        return sessionId;
     }
 
     public static abstract class SignInListener {
@@ -206,6 +211,7 @@ public class APIClient {
         realm.beginTransaction();
         realm.where(Session.class).findAll().clear();
         realm.commitTransaction();
+        realm.close();
 
         // Create the authorization header with base64-encoded username:password
         final Map<String, String> headers = getHeaders();
@@ -213,7 +219,7 @@ public class APIClient {
         String base64string = Base64.encodeToString(authString.getBytes(), Base64.NO_WRAP);
         headers.put("Authorization", "Basic " + base64string);
 
-        // Build the URL for login
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/auth/login").toString();
@@ -246,6 +252,7 @@ public class APIClient {
                 User copiedUser = realm.copyToRealmOrUpdate(user);
                 s.setUser(copiedUser);
                 realm.commitTransaction();
+                realm.close();
                 listener.signInComplete(user, null);
             }
         }, new Response.ErrorListener() {
@@ -262,12 +269,20 @@ public class APIClient {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
                 if ( sessionId != null ) {
                     Realm realm = Realm.getInstance(_context);
-                    // Create the session in the database
+
                     realm.beginTransaction();
+
+                    // Get rid of any old sessions
+                    realm.where(Session.class).findAll().clear();
+
+                    // Create the session in the database
                     Session s = realm.createObject(Session.class);
                     s.setSessionId(sessionId);
+                    Log.d(LOG_TAG, "Session ID: " + sessionId);
                     s.setKey(Session.SESSION_KEY);
+
                     realm.commitTransaction();
+                    realm.close();
                 }
                 return super.parseNetworkResponse(response);
             }
@@ -326,6 +341,188 @@ public class APIClient {
 
         _requestQueue.add(req);
         return req;
+    }
+
+    public static abstract class PostNoteListener {
+        public abstract void notePosted(Note note, Exception error);
+    }
+    public Request postNote(final Note note, final PostNoteListener listener) {
+        // Build the URL
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/send/" + note.getGroupid()).toString();
+        } catch (MalformedURLException e) {
+            listener.notePosted(null, e);
+            return null;
+        }
+
+        final String noteJson = getGson(MESSAGE_DATE_FORMAT).toJson(note);
+
+        StringRequest request = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                // Add the message to the database
+                Log.d(LOG_TAG, "Post note response data: " + response);
+
+                // The repsonse only contains the ID.
+                String noteId = null;
+                try {
+                    JSONObject noteIdobject = new JSONObject(response);
+                    noteId = noteIdobject.getString("id");
+                    note.setId(noteId);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    listener.notePosted(null, e);
+                    return;
+                }
+
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                Note sentNote = realm.copyToRealmOrUpdate(note);
+
+                // Update the hashtags for this note.
+                List<Hashtag> hashtags = HashtagUtils.parseHashtags(sentNote.getMessagetext());
+                for ( Hashtag hash : hashtags ) {
+                    hash.setOwnerId(sentNote.getUserid());
+                    sentNote.getHashtags().add(hash);
+                }
+                realm.commitTransaction();
+                realm.close();
+                listener.notePosted(sentNote, null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e(LOG_TAG, "Failed to post message: " + error);
+                listener.notePosted(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+
+            @Override
+            public byte[] getBody() throws AuthFailureError {
+                String bodyText = "{\"message\":" + noteJson + "}";
+                Log.d(LOG_TAG, "Message post text: " + bodyText);
+                return bodyText.getBytes();
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
+    public static abstract class UpdateNoteListener {
+        public abstract void noteUpdated(Note note, Exception error);
+    }
+    public Request updateNote(final Note note, final UpdateNoteListener listener) {
+        // Build the URL
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/edit/" + note.getId()).toString();
+        } catch (MalformedURLException e) {
+            listener.noteUpdated(null, e);
+            return null;
+        }
+
+        JSONObject messageObject;
+        try {
+            messageObject = new JSONObject();
+            messageObject.put("messagetext", note.getMessagetext());
+            messageObject.put("timestamp", note.getTimestamp());
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, "Could not create edit message JSON: " + e.toString());
+            listener.noteUpdated(null, e);
+            return null;
+        }
+
+        final String noteJson = messageObject.toString();
+
+        StringRequest request = new StringRequest(Request.Method.PUT, url, new Response.Listener<String>() {
+
+            @Override
+            public void onResponse(String response) {
+                // Update was successful. Update the database to reflect the change and notify the caller
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                realm.copyToRealmOrUpdate(note);
+                realm.commitTransaction();
+                realm.close();
+                listener.noteUpdated(note, null);
+            }
+
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.noteUpdated(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+
+            @Override
+            public byte[] getBody() throws AuthFailureError {
+                String bodyText = "{\"message\":" + noteJson + "}";
+                return bodyText.getBytes();
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
+    public static abstract class DeleteNoteListener {
+        public abstract void noteDeleted(Exception error);
+    }
+    public Request deleteNote(final Note note, final DeleteNoteListener listener) {
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/remove/" + note.getId()).toString();
+        } catch (MalformedURLException e) {
+            listener.noteDeleted(e);
+            return null;
+        }
+
+        StringRequest request = new StringRequest(Request.Method.DELETE, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                // All is well. Delete the note from our database.
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                realm.where(Note.class).equalTo("id", note.getId()).findAll().clear();
+                realm.commitTransaction();
+                realm.close();
+                listener.noteDeleted(null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e(LOG_TAG, "Error deleting note: " + error);
+                listener.noteDeleted(error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
     }
 
     public void clearDatabase() {
@@ -415,7 +612,7 @@ public class APIClient {
         public abstract void fetchComplete(RealmList<SharedUserId> userIds, Exception error);
     }
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
-        // Build the URL for login
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/access/groups/" + getUser().getUserid()).toString();
@@ -427,34 +624,38 @@ public class APIClient {
         StringRequest req = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
+                Realm realm = Realm.getInstance(_context);
+                JSONObject jsonObject = null;
                 try {
-                    JSONObject jsonObject = new JSONObject(response);
-                    RealmList<SharedUserId> userIds = new RealmList<>();
-                    Iterator iter = jsonObject.keys();
-
-                    Realm realm = Realm.getInstance(_context);
-                    User user = getUser();
-
-                    realm.beginTransaction();
-
-                    // Out with the old
-                    realm.where(SharedUserId.class).findAll().clear();
-
-                    while ( iter.hasNext() ) {
-                        String viewableId = (String)iter.next();
-                        userIds.add(new SharedUserId(viewableId));
-                    }
-
-                    // Put the IDs into the database
-                    user.getViewableUserIds().removeAll(user.getViewableUserIds());
-                    user.getViewableUserIds().addAll(userIds);
-
-                    realm.commitTransaction();
-
-                    listener.fetchComplete(userIds, null);
+                    Log.d(LOG_TAG, "Groups: " + response);
+                    jsonObject = new JSONObject(response);
                 } catch (JSONException e) {
                     listener.fetchComplete(null, e);
+                    return;
                 }
+
+                RealmList<SharedUserId> userIds = new RealmList<>();
+                Iterator iter = jsonObject.keys();
+
+                User user = getUser();
+
+                realm.beginTransaction();
+
+                // Out with the old
+                realm.where(SharedUserId.class).findAll().clear();
+
+                while ( iter.hasNext() ) {
+                    String viewableId = (String)iter.next();
+                    userIds.add(new SharedUserId(viewableId));
+                }
+
+                // Put the IDs into the database
+                user.getViewableUserIds().removeAll(user.getViewableUserIds());
+                user.getViewableUserIds().addAll(userIds);
+
+                realm.commitTransaction();
+
+                listener.fetchComplete(userIds, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -477,12 +678,14 @@ public class APIClient {
     }
 
     public Request getProfileForUserId(final String userId, final ProfileListener listener) {
-        // Build the URL for getProfile
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/metadata/" + userId + "/profile").toString();
         } catch (MalformedURLException e) {
-            listener.profileReceived(null, e);
+            if ( listener != null ) {
+                listener.profileReceived(null, e);
+            }
             return null;
         }
 
@@ -505,14 +708,18 @@ public class APIClient {
                 }
                 user.setProfile(profile);
                 realm.commitTransaction();
-
-                listener.profileReceived(profile, null);
+                if ( listener != null ) {
+                    listener.profileReceived(profile, null);
+                }
+                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(LOG_TAG, "Profile error: " + error);
-                listener.profileReceived(null, error);
+                if ( listener != null ) {
+                    listener.profileReceived(null, error);
+                }
             }
         }) {
             @Override
@@ -550,6 +757,8 @@ public class APIClient {
             @Override
             public void onResponse(String json) {
                 // Returned JSON is an object array called "messages"
+                Log.d(LOG_TAG, "Messages response:" + json);
+
                 Realm realm = Realm.getInstance(_context);
                 RealmList<Note> noteList = new RealmList<>();
                 realm.beginTransaction();
@@ -558,6 +767,13 @@ public class APIClient {
                 // through the messages
                 realm.where(Hashtag.class)
                         .equalTo("ownerId", userId)
+                        .findAll().clear();
+
+                // Also get rid of the messages for this user in the specified date range, in case some were deleted.
+                realm.where(Note.class)
+                        .equalTo("groupid", userId)
+                        .greaterThan("timestamp", fromDate)
+                        .lessThanOrEqualTo("timestamp", toDate)
                         .findAll().clear();
 
                 // Odd date format in the messages
@@ -578,15 +794,33 @@ public class APIClient {
                             hash.setOwnerId(userId);
                             note.getHashtags().add(hash);
                         }
+
+                        // See if we're missing any users that are mentioned in the note
+                        // Check the note author (userid)
+                        RealmResults userSearch = realm.where(User.class).equalTo("userid", note.getUserid()).findAll();
+                        if ( userSearch.size() == 0 ) {
+                            Log.d(LOG_TAG, "Getting profile for user: " + note.getUserid());
+                            getProfileForUserId(note.getUserid(), null);
+                        }
+
+                        // Also check the group (groupid)
+                        userSearch = realm.where(User.class).equalTo("userid", note.getGroupid()).findAll();
+                        if ( userSearch.size() == 0 ) {
+                            Log.d(LOG_TAG, "Getting profile for group: " + note.getGroupid());
+                            getProfileForUserId(note.getGroupid(), null);
+                        }
                         noteList.add(note);
                     }
                 } catch (JSONException e) {
                     realm.cancelTransaction();
                     listener.notesReceived(null, e);
+                    realm.close();
+                    return;
                 }
 
                 realm.commitTransaction();
                 listener.notesReceived(noteList, null);
+                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
@@ -619,6 +853,8 @@ public class APIClient {
         if ( sessionId != null ) {
             headers.put(HEADER_SESSION_ID, sessionId);
         }
+
+        Log.d(LOG_TAG, "Headers: " + headers);
         return headers;
     }
 }
