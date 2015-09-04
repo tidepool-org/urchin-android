@@ -239,20 +239,38 @@ public class NewNoteActivity extends AppCompatActivity {
         note.setUserid(api.getUser().getUserid());
         note.setGuid(UUID.randomUUID().toString());
 
-
-        api.postNote(note, new APIClient.PostNoteListener() {
-            @Override
-            public void notePosted(Note note, Exception error) {
-                if (error == null) {
-                    // Note was posted.
-                    Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
-                    finish();
-                } else {
-                    String errorMessage = getResources().getString(R.string.error_posting, error.getMessage());
-                    Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+        if ( _editingNote == null ) {
+            // We are creating a new note
+            api.postNote(note, new APIClient.PostNoteListener() {
+                @Override
+                public void notePosted(Note note, Exception error) {
+                    if (error == null) {
+                        // Note was posted.
+                        Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        String errorMessage = getResources().getString(R.string.error_posting, error.getMessage());
+                        Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            // We are updating an existing note
+            note.setId(_editingNote.getId());
+            api.updateNote(note, new APIClient.UpdateNoteListener() {
+                @Override
+                public void noteUpdated(Note note, Exception error) {
+                    if (error == null) {
+                        // Note was posted.
+                        Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        String errorMessage = getResources().getString(R.string.error_updating, error.getMessage());
+                        Toast.makeText(NewNoteActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        }
     }
 
     private void populateDropDownList() {

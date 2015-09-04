@@ -34,7 +34,9 @@
         </activity>
         <activity
             android:name=".NewNoteActivity"
-            android:label="@string/title_activity_new_note" >
+            android:label="@string/title_activity_new_note"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize|stateVisible">
         </activity>
     </application>
 

@@ -219,7 +219,7 @@ public class APIClient {
         String base64string = Base64.encodeToString(authString.getBytes(), Base64.NO_WRAP);
         headers.put("Authorization", "Basic " + base64string);
 
-        // Build the URL for login
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/auth/login").toString();
@@ -347,7 +347,7 @@ public class APIClient {
         public abstract void notePosted(Note note, Exception error);
     }
     public Request postNote(final Note note, final PostNoteListener listener) {
-        // Build the URL for login
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/message/send/" + note.getGroupid()).toString();
@@ -406,6 +406,72 @@ public class APIClient {
             public byte[] getBody() throws AuthFailureError {
                 String bodyText = "{\"message\":" + noteJson + "}";
                 Log.d(LOG_TAG, "Message post text: " + bodyText);
+                return bodyText.getBytes();
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json";
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
+    public static abstract class UpdateNoteListener {
+        public abstract void noteUpdated(Note note, Exception error);
+    }
+    public Request updateNote(final Note note, final UpdateNoteListener listener) {
+        // Build the URL
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/edit/" + note.getId()).toString();
+        } catch (MalformedURLException e) {
+            listener.noteUpdated(null, e);
+            return null;
+        }
+
+        JSONObject messageObject;
+        try {
+            messageObject = new JSONObject();
+            messageObject.put("messagetext", note.getMessagetext());
+            messageObject.put("timestamp", note.getTimestamp());
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, "Could not create edit message JSON: " + e.toString());
+            listener.noteUpdated(null, e);
+            return null;
+        }
+
+        final String noteJson = messageObject.toString();
+
+        StringRequest request = new StringRequest(Request.Method.PUT, url, new Response.Listener<String>() {
+
+            @Override
+            public void onResponse(String response) {
+                // Update was successful. Update the database to reflect the change and notify the caller
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                realm.copyToRealmOrUpdate(note);
+                realm.commitTransaction();
+                realm.close();
+                listener.noteUpdated(note, null);
+            }
+
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.noteUpdated(null, error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+
+            @Override
+            public byte[] getBody() throws AuthFailureError {
+                String bodyText = "{\"message\":" + noteJson + "}";
                 return bodyText.getBytes();
             }
 
@@ -506,7 +572,7 @@ public class APIClient {
         public abstract void fetchComplete(RealmList<SharedUserId> userIds, Exception error);
     }
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
-        // Build the URL for login
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/access/groups/" + getUser().getUserid()).toString();
@@ -572,7 +638,7 @@ public class APIClient {
     }
 
     public Request getProfileForUserId(final String userId, final ProfileListener listener) {
-        // Build the URL for getProfile
+        // Build the URL
         String url = null;
         try {
             url = new URL(getBaseURL(), "/metadata/" + userId + "/profile").toString();

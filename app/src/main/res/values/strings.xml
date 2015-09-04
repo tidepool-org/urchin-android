@@ -20,7 +20,9 @@
     <string name="action_filter_notes">Show notes from...</string>
     <string name="note_for">Note for...</string>
     <string name="note_posted">Note posted!</string>
+    <string name="note_updated">Note updated!</string>
     <string name="error_posting">An error occurred while trying to post your message: %s</string>
+    <string name="error_updating">An error occurred while trying to update your message: %s</string>
     <string name="button_save">Save</string>
     <string name="action_delete_note">Delete</string>
 
