@@ -50,6 +50,8 @@
 
     <color name="new_note_bg">#00000000</color>
 
+    <color name="edit_button_tint">@color/app_theme_primary_light</color>
+
     <color name="link">#0088CC</color>
 
     <!-- Default button background gradients -->

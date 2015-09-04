@@ -58,6 +58,9 @@ import io.tidepool.urchin.util.HashtagUtils;
 public class NewNoteActivity extends AppCompatActivity {
     private static final String LOG_TAG = "NewNote";
 
+    // Arguments we can take to edit instead of create a new note
+    public static final String ARG_EDIT_NOTE_ID = "EditNoteId";         // The ID of the note to edit
+
     private static final int MAX_TAGS = 50;         // Most tags we will show in the scrolling list
     private static final int FORMAT_TIMEOUT = 1000; // Delay we wait to see if the user has stopped typing
 
@@ -66,6 +69,7 @@ public class NewNoteActivity extends AppCompatActivity {
     private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
+    private Button _postButton;
 
     private User _currentUser;
 
@@ -73,6 +77,8 @@ public class NewNoteActivity extends AppCompatActivity {
     private Handler _formatTextHandler;
 
     private boolean _updatingText;                  // So we don't update text recursively
+
+    private Note _editingNote;                      // Null for a new note
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,7 +113,8 @@ public class NewNoteActivity extends AppCompatActivity {
         });
 
         // Respond to the button
-        findViewById(R.id.post_button).setOnClickListener(new View.OnClickListener() {
+        _postButton = (Button)findViewById(R.id.post_button);
+        _postButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 postClicked();
@@ -173,6 +180,27 @@ public class NewNoteActivity extends AppCompatActivity {
             }
         }
         realm.close();
+
+        // See if we were launched to create a new note, or to edit an existing one
+        Bundle args = getIntent().getExtras();
+        String messageId = args.getString(ARG_EDIT_NOTE_ID);
+        if ( messageId != null ) {
+            setEditing(messageId);
+        }
+    }
+
+    private void setEditing(String messageId) {
+        Realm realm = Realm.getInstance(this);
+        Note note = realm.where(Note.class).equalTo("id", messageId).findFirst();
+        User author = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
+        setCurrentUser(author);
+        _noteTime = note.getTimestamp();
+        setDateTimeText(_noteTime);
+        SpannableString ss = new SpannableString(note.getMessagetext());
+        HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
+        _noteEditText.setText(ss);
+        _postButton.setText(R.string.button_save);
+        _editingNote = note;
     }
 
     private void setCurrentUser(User user) {
@@ -210,6 +238,7 @@ public class NewNoteActivity extends AppCompatActivity {
         note.setTimestamp(_noteTime);
         note.setUserid(api.getUser().getUserid());
         note.setGuid(UUID.randomUUID().toString());
+
 
         api.postNote(note, new APIClient.PostNoteListener() {
             @Override
@@ -317,7 +346,11 @@ public class NewNoteActivity extends AppCompatActivity {
 
         // No menu for us.
         MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
+        if ( _editingNote == null ) {
+            inflater.inflate(R.menu.menu_main, menu);
+        } else {
+            inflater.inflate(R.menu.menu_edit_note, menu);
+        }
         return true;
     }
 
@@ -332,6 +365,10 @@ public class NewNoteActivity extends AppCompatActivity {
                 showDropDownMenu(false);
             }
             return true;
+        }
+
+        if ( id == R.id.action_delete_note ) {
+            Log.d(LOG_TAG, "Delete Note");
         }
 
         return super.onOptionsItemSelected(item);

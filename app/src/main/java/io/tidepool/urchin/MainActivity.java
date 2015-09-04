@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -437,12 +438,15 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         public TextView _author;
         public TextView _date;
         public TextView _body;
+        public ImageView _editImageView;
 
         public NotesViewHolder(View itemView) {
             super(itemView);
             _author = (TextView)itemView.findViewById(R.id.note_author);
             _date = (TextView)itemView.findViewById(R.id.note_date);
             _body = (TextView)itemView.findViewById(R.id.note_body);
+            _editImageView = (ImageView)itemView.findViewById(R.id.edit_note_button);
+            _editImageView.setColorFilter(getResources().getColor(R.color.edit_button_tint));
         }
     }
 
@@ -456,7 +460,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         @Override
         public void onBindViewHolder(NotesViewHolder notesViewHolder, int i) {
-            Note note = _notesResultSet.get(i);
+            final Note note = _notesResultSet.get(i);
             SpannableString bodyText = new SpannableString(note.getMessagetext());
             int color = getResources().getColor(R.color.hashtag_text);
             HashtagUtils.formatHashtags(bodyText, color, true);
@@ -484,6 +488,18 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             CardView cardView = (CardView)notesViewHolder.itemView;
             cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
 
+            if ( note.getUserid().equals(_apiClient.getUser().getUserid())) {
+                notesViewHolder._editImageView.setVisibility(View.VISIBLE);
+                notesViewHolder._editImageView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        editNoteClicked(note);
+                    }
+                });
+            } else {
+                notesViewHolder._editImageView.setVisibility(View.GONE);
+            }
+
             realm.close();
         }
 
@@ -492,6 +508,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             return _notesResultSet.size();
         }
 
+    }
+
+    private void editNoteClicked(Note note) {
+        Log.d(LOG_TAG, "Edit note: " + note.getMessagetext());
+        Intent intent = new Intent(this, NewNoteActivity.class);
+        intent.putExtra(NewNoteActivity.ARG_EDIT_NOTE_ID, note.getId());
+        startActivity(intent);
     }
 
 

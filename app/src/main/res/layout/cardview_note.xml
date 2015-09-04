@@ -12,23 +12,47 @@
         android:layout_margin="8dp"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/note_author"
-            style="@style/NoteAuthorText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:layout_marginLeft="4dp"
-            android:layout_marginRight="4dp"
-            android:text="note author"/>
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/note_date"
-            style="@style/NoteDateText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="4dp"
-            android:text="note date"/>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/note_author"
+                    style="@style/NoteAuthorText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|center_vertical"
+                    android:layout_marginLeft="4dp"
+                    android:layout_marginRight="4dp"
+                    android:layout_marginTop="4dp"
+                    android:text="note author"/>
+
+                <TextView
+                    android:id="@+id/note_date"
+                    style="@style/NoteDateText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"/>
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/edit_note_button"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_margin="4dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/ic_mode_edit_black_48dp"
+                />
+
+        </LinearLayout>
 
         <View
             android:layout_width="match_parent"
