@@ -155,7 +155,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             setUserFilter(current.getCurrentUser());
         } else {
             String title = getResources().getString(R.string.all_notes);
-            title = title + " - " + MiscUtils.getPrintableNameForUser(user);
             setTitle(title);
         }
 
@@ -189,7 +188,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         if ( _userFilter == null ) {
             _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
             String title = getResources().getString(R.string.all_notes);
-            title = title + " - " + MiscUtils.getPrintableNameForUser(_apiClient.getUser());
             setTitle(title);
 
         } else {

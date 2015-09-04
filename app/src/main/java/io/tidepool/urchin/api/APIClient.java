@@ -485,6 +485,46 @@ public class APIClient {
         return request;
     }
 
+    public static abstract class DeleteNoteListener {
+        public abstract void noteDeleted(Exception error);
+    }
+    public Request deleteNote(final Note note, final DeleteNoteListener listener) {
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/message/remove/" + note.getId()).toString();
+        } catch (MalformedURLException e) {
+            listener.noteDeleted(e);
+            return null;
+        }
+
+        StringRequest request = new StringRequest(Request.Method.DELETE, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                // All is well. Delete the note from our database.
+                Realm realm = Realm.getInstance(_context);
+                realm.beginTransaction();
+                realm.where(Note.class).equalTo("id", note.getId()).findAll().clear();
+                realm.commitTransaction();
+                realm.close();
+                listener.noteDeleted(null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e(LOG_TAG, "Error deleting note: " + error);
+                listener.noteDeleted(error);
+            }
+        }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
     public void clearDatabase() {
         // Clean  out the database
         Realm realm = Realm.getInstance(_context);
@@ -727,6 +767,13 @@ public class APIClient {
                 // through the messages
                 realm.where(Hashtag.class)
                         .equalTo("ownerId", userId)
+                        .findAll().clear();
+
+                // Also get rid of the messages for this user in the specified date range, in case some were deleted.
+                realm.where(Note.class)
+                        .equalTo("groupid", userId)
+                        .greaterThan("timestamp", fromDate)
+                        .lessThanOrEqualTo("timestamp", toDate)
                         .findAll().clear();
 
                 // Odd date format in the messages

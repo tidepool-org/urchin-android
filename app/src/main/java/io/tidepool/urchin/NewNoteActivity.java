@@ -1,8 +1,10 @@
 package io.tidepool.urchin;
 
 import android.animation.Animator;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.DialogInterface;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -387,6 +389,18 @@ public class NewNoteActivity extends AppCompatActivity {
 
         if ( id == R.id.action_delete_note ) {
             Log.d(LOG_TAG, "Delete Note");
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.action_delete_note)
+                    .setMessage(R.string.delete_note_confirm)
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            deleteNote();
+                        }
+                    })
+                    .setNegativeButton(android.R.string.no, null)
+                    .setIcon(getResources().getDrawable(R.mipmap.ic_launcher))
+                    .show();
         }
 
         return super.onOptionsItemSelected(item);
@@ -414,6 +428,21 @@ public class NewNoteActivity extends AppCompatActivity {
                 return super.onContextItemSelected(item);
         }
         return true;
+    }
+
+    private void deleteNote() {
+        // We're deleting the note we are currently editing.
+        MainActivity.getInstance().getAPIClient().deleteNote(_editingNote, new APIClient.DeleteNoteListener() {
+            @Override
+            public void noteDeleted(Exception error) {
+                if ( error == null ) {
+                    Toast.makeText(NewNoteActivity.this, R.string.note_deleted, Toast.LENGTH_LONG).show();
+                    finish();
+                } else {
+                    Toast.makeText(NewNoteActivity.this, R.string.note_deleted_error, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
     }
 
     private void setDateTimeText(Date when) {
