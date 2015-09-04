@@ -185,9 +185,11 @@ public class NewNoteActivity extends AppCompatActivity {
 
         // See if we were launched to create a new note, or to edit an existing one
         Bundle args = getIntent().getExtras();
-        String messageId = args.getString(ARG_EDIT_NOTE_ID);
-        if ( messageId != null ) {
-            setEditing(messageId);
+        if ( args != null ) {
+            String messageId = args.getString(ARG_EDIT_NOTE_ID);
+            if (messageId != null) {
+                setEditing(messageId);
+            }
         }
     }
 
