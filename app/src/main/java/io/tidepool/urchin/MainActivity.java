@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     // Activity request codes
     private static final int REQ_LOGIN = 1;
+    private static final int REQ_NOTE = 2;
 
     // Key into preferences for the ID of the user filter
     private static final String PREFS_KEY_USERID = "PrefsUserId";
@@ -71,6 +72,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private LinearLayout _dropDownLayout;
     private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
     private ListView _dropDownListView;
+
+    // State stuff
+    private boolean _justAdded;
 
     // Access to our instance
     private static MainActivity __thisInstance;
@@ -145,7 +149,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // Create our API client on the appropriate service
         _apiClient = new APIClient(this, SERVER);
 
-
         // BSK: We will leave the realm instance open for the lifetime of this activity,
         // and will perform an extra close() in onDestroy().
     }
@@ -213,6 +216,12 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                         updateUser();
                         // Select the current user, if present in the db
                         restoreUserFilter();
+
+                        // Launch the "Add Note" unless we're returning from that activity
+                        if ( !_justAdded ) {
+                            addButtonTapped();
+                        }
+                        _justAdded = false;
                     }
                 }
             });
@@ -337,6 +346,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 } else {
                     finish();
                 }
+                break;
+
+            case REQ_NOTE:
+                // Got back from "Add Note" screen
+                Log.d(LOG_TAG, "ADD returned");
+                _justAdded = true;
+                break;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -344,7 +360,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     protected void addButtonTapped() {
         Log.d(LOG_TAG, "Add Tapped");
         Intent intent = new Intent(this, NewNoteActivity.class);
-        startActivity(intent);
+        startActivityForResult(intent, REQ_NOTE);
     }
 
     /**
@@ -385,6 +401,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
         } else {
             _swipeRefreshLayout.setRefreshing(false);
+            restoreUserFilter();
         }
     }
 
@@ -553,7 +570,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         Log.d(LOG_TAG, "Edit note: " + note.getMessagetext());
         Intent intent = new Intent(this, NewNoteActivity.class);
         intent.putExtra(NewNoteActivity.ARG_EDIT_NOTE_ID, note.getId());
-        startActivity(intent);
+        startActivityForResult(intent, REQ_NOTE);
     }
 
 
