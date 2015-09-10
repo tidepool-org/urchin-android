@@ -299,6 +299,71 @@ public class APIClient {
         return req;
     }
 
+
+    public abstract static class RefreshTokenListener {
+        public abstract void tokenRefreshed(Exception error);
+    }
+    public Request refreshToken(final RefreshTokenListener listener) {
+        Log.d(LOG_TAG, "refreshToken");
+
+        String sessionId = getSessionId();
+        if ( sessionId == null ) {
+            listener.tokenRefreshed(new Exception("No token to refresh"));
+            return null;
+        }
+
+        // Build the URL
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/auth/login").toString();
+        } catch (MalformedURLException e) {
+            listener.tokenRefreshed(e);
+            return null;
+        }
+
+        StringRequest request = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                listener.tokenRefreshed(null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.tokenRefreshed(error);
+            }
+        }) {
+            @Override
+            protected Response<String> parseNetworkResponse(NetworkResponse response) {
+                String sessionId = response.headers.get(HEADER_SESSION_ID);
+                if ( sessionId != null ) {
+                    Realm realm = Realm.getInstance(_context);
+
+                    realm.beginTransaction();
+
+                    // Get the current session
+                    Session s = realm.where(Session.class).findAll().first();
+
+                    // Update the session ID
+                    s.setSessionId(sessionId);
+
+                    Log.d(LOG_TAG, "Session ID refreshed: " + sessionId);
+
+                    realm.commitTransaction();
+                    realm.close();
+                }
+                return super.parseNetworkResponse(response);
+            }
+
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
+    }
+
     public abstract static class SignOutListener {
         public abstract void signedOut(int responseCode, Exception error);
     }
