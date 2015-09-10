@@ -1,7 +1,11 @@
 package io.tidepool.urchin.util;
 
+import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.text.TextUtils;
 
+import io.tidepool.urchin.MainActivity;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.User;
 
@@ -37,4 +41,16 @@ public class MiscUtils {
         return name;
     }
 
+    public static String getAppInfoString(Context context) {
+        PackageInfo info = null;
+        String ver = "UNKNOWN";
+        try {
+            info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            ver = info.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return "v" + ver + " on " + MainActivity.getInstance().getSelectedServer();
+    }
 }

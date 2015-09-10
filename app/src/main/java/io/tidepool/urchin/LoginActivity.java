@@ -38,6 +38,7 @@ import java.util.List;
 import io.realm.Realm;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.User;
+import io.tidepool.urchin.util.MiscUtils;
 
 /**
  * A login screen that offers login via email/password.
@@ -101,16 +102,8 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         }
 
         TextView version = (TextView)findViewById(R.id.version_textview);
-        PackageInfo info = null;
-        String ver = "UNKNOWN";
-        try {
-            info = getPackageManager().getPackageInfo(getPackageName(), 0);
-            ver = info.versionName;
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
 
-        version.setText("v" + ver + " on " + MainActivity.SERVER);
+        version.setText(MiscUtils.getAppInfoString(this));
     }
 
     private void populateAutoComplete() {

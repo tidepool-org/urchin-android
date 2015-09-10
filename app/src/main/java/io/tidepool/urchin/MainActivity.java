@@ -105,6 +105,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         });
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
 
+        // Add a footer with the version / server
+        LinearLayout footerLayout = (LinearLayout)getLayoutInflater().inflate(R.layout.version, null);
+        TextView footer = (TextView)footerLayout.findViewById(R.id.version_textview);
+        footer.setText(MiscUtils.getAppInfoString(this));
+
+        _dropDownListView.addFooterView(footerLayout);
+
         _addButton = (ImageButton)findViewById(R.id.add_button);
         _addButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -450,7 +457,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _apiClient.signOut(new APIClient.SignOutListener() {
             @Override
             public void signedOut(int responseCode, Exception error) {
-               showLogin();
+                showLogin();
             }
         });
     }
@@ -460,6 +467,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // Swipe view refresh
         Log.d(LOG_TAG, "OnRefresh");
         updateUser();
+    }
+
+    public String getSelectedServer() {
+        return SERVER;
     }
 
     public class NotesViewHolder extends RecyclerView.ViewHolder {
