@@ -2,7 +2,7 @@
     <string name="app_name">Blip Notes</string>
 
     <string name="action_settings">Settings</string>
-    <string name="action_sign_out">Sign out</string>
+    <string name="action_sign_out">Logout</string>
 
     <!-- Base font family to use for the application -->
     <string name="font_family">sans-serif-light</string>
