@@ -29,7 +29,7 @@
     </style>
 
     <style name="NoteDateText" parent="@android:style/TextAppearance.Small">
-        <item name="android:textStyle">italic</item>
+
     </style>
 
     <style name="NoteBodyText" parent="@android:style/TextAppearance.Medium">
