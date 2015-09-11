@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private LinearLayout _dropDownLayout;
     private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
     private ListView _dropDownListView;
+    private TextView _footerTextView;
 
     // State stuff
     private boolean _justAdded;
@@ -112,8 +113,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         // Add a footer with the version / server
         LinearLayout footerLayout = (LinearLayout)getLayoutInflater().inflate(R.layout.version, null);
-        TextView footer = (TextView)footerLayout.findViewById(R.id.version_textview);
-        footer.setText(MiscUtils.getAppInfoString(this));
+        _footerTextView = (TextView)footerLayout.findViewById(R.id.version_textview);
+        _footerTextView.setText(MiscUtils.getAppInfoString(this));
 
         _dropDownListView.addFooterView(footerLayout);
 
@@ -426,17 +427,22 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 showDropDownMenu(false);
             }
         });
+        _footerTextView.setText(MiscUtils.getAppInfoString(this));
     }
 
     private void setUserFilter(User user) {
         // Set the current user in the database
+
+        // First get the user out of the database
+        User apiClientUser = _apiClient.getUser();
+
         Realm realm = Realm.getInstance(this);
         realm.beginTransaction();
         realm.where(CurrentUser.class).findAll().clear();
         CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
         if ( user == null ) {
             // We want a real user object in here- it's the logged-in user.
-            newCurrentUser.setCurrentUser(_apiClient.getUser());
+            newCurrentUser.setCurrentUser(apiClientUser);
         } else {
             newCurrentUser.setCurrentUser(user);
         }
