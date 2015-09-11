@@ -28,6 +28,11 @@
     <string name="delete_note_confirm">Are you sure you want to permanently delete this note?</string>
     <string name="note_deleted">The note was deleted</string>
     <string name="note_deleted_error">An error occurred while trying to delete this note. Please try again later.</string>
+    <string name="discard_note_title">Discard Note?</string>
+    <string name="discard_note_message">If you close this note, your note will be lost.</string>
+    <string name="save_changes_title">Save changes?</string>
+    <string name="save_changes_message">You have made changes to this note. Would you like to save these changes?</string>
+    <string name="button_discard">Discard</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">

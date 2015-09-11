@@ -300,8 +300,69 @@ public class NewNoteActivity extends AppCompatActivity {
         if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
             showDropDownMenu(false);
         } else {
-            super.onBackPressed();
+            if ( wasEdited() ) {
+                confirmExit();
+            } else {
+                super.onBackPressed();
+            }
         }
+    }
+
+    private void confirmExit() {
+        boolean editing = (_editingNote != null);
+        int title = editing ? R.string.save_changes_title : R.string.discard_note_title;
+        int message = editing ? R.string.save_changes_message : R.string.discard_note_message;
+        int ok = editing ? R.string.button_save : android.R.string.ok;
+        int cancel = editing ? R.string.button_discard : android.R.string.cancel;
+
+        DialogInterface.OnClickListener okListener;
+        DialogInterface.OnClickListener cancelListener;
+
+        if ( editing ) {
+            okListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Save the changes and exit. Just click Post and we're done.
+                    postClicked();
+                }
+            };
+            cancelListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Discard the changes and exit.
+                    NewNoteActivity.super.onBackPressed();
+                }
+            };
+        } else {
+            okListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Discard the changes and exit
+                    NewNoteActivity.super.onBackPressed();
+                }
+            };
+
+            // Don't exit
+            cancelListener = null;
+        }
+
+        // Build and show the dialog
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(ok, okListener)
+                .setNegativeButton(cancel, cancelListener)
+                .create().show();
+    }
+
+    private boolean wasEdited() {
+        if ( _editingNote == null ) {
+            return _noteEditText.getText().length() > 0;
+        }
+
+        // We are editing a note. Return true if the text or date has changed
+        return !(_noteEditText.getText().toString().equals(_editingNote.getMessagetext()) &&
+                 _noteTime.equals(_editingNote.getTimestamp()));
     }
 
     private void showDropDownMenu(boolean show) {
