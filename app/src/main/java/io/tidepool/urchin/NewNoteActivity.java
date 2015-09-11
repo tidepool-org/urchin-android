@@ -642,7 +642,8 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public void onChange() {
         // Realm database has changed
-        Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list");
+        Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list and hashtag view");
         populateDropDownList();
+        setupHashtags();
     }
 }
