@@ -49,8 +49,8 @@ import io.tidepool.urchin.util.MiscUtils;
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
 
-    // What server we will connect to
-    public static final String SERVER = APIClient.PRODUCTION;
+    // What server we will connect to by default
+    private static final String DEFAULT_SERVER = APIClient.PRODUCTION;
 
     // Activity request codes
     private static final int REQ_LOGIN = 1;
@@ -58,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     // Key into preferences for the ID of the user filter
     private static final String PREFS_KEY_USERID = "PrefsUserId";
+    private static final String PREFS_KEY_SERVER = "Server";
 
     private APIClient _apiClient;
 
@@ -147,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
 
         // Create our API client on the appropriate service
-        _apiClient = new APIClient(this, SERVER);
+        _apiClient = new APIClient(this, getSelectedServer());
 
         // BSK: We will leave the realm instance open for the lifetime of this activity,
         // and will perform an extra close() in onDestroy().
@@ -218,7 +219,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                         restoreUserFilter();
 
                         // Launch the "Add Note" unless we're returning from that activity
-                        if ( !_justAdded ) {
+                        if (!_justAdded) {
                             addButtonTapped();
                         }
                         _justAdded = false;
@@ -416,7 +417,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 if (position == 0) {
                     // All users
                     setUserFilter(null);
-                } else if (position == parent.getAdapter().getCount() - 1) {
+                } else if (position == parent.getAdapter().getCount() - 2) {
                     signOut();
                 } else {
                     User user = (User) _dropDownListView.getAdapter().getItem(position);
@@ -487,7 +488,15 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     }
 
     public String getSelectedServer() {
-        return SERVER;
+        return getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_SERVER, DEFAULT_SERVER);
+    }
+
+    public void setSelectedServer(String server) {
+        getPreferences(Context.MODE_PRIVATE).edit().putString(PREFS_KEY_SERVER, server).apply();
+        _apiClient = new APIClient(this, server);
+
+        // Remove everything from our database
+        _apiClient.clearDatabase();
     }
 
     public class NotesViewHolder extends RecyclerView.ViewHolder {

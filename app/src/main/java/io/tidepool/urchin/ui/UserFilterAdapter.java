@@ -86,6 +86,7 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
     @Override
     public int getCount() {
+        // Extras are 2: 1 for "All Notes", 1 for "Logout".
         int additionals = _addExtras ? 2 : 0;
         return super.getCount() + additionals;
     }

@@ -33,6 +33,9 @@
     <string name="save_changes_title">Save changes?</string>
     <string name="save_changes_message">You have made changes to this note. Would you like to save these changes?</string>
     <string name="button_discard">Discard</string>
+    <string name="production">Production</string>
+    <string name="staging">Staging</string>
+    <string name="development">Development</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">

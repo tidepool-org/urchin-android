@@ -20,7 +20,10 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.KeyEvent;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
@@ -101,9 +104,42 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             mRememberMeCheckBox.setChecked(true);
         }
 
-        TextView version = (TextView)findViewById(R.id.version_textview);
+        registerForContextMenu(findViewById(R.id.tidepool_logo));
 
+        TextView version = (TextView)findViewById(R.id.version_textview);
         version.setText(MiscUtils.getAppInfoString(this));
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_select_server, menu);
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        switch ( item.getItemId() ) {
+            case R.id.server_development:
+                MainActivity.getInstance().setSelectedServer(APIClient.DEVELOPMENT);
+                break;
+
+            case R.id.server_production:
+                MainActivity.getInstance().setSelectedServer(APIClient.PRODUCTION);
+                break;
+
+            case R.id.server_staging:
+                MainActivity.getInstance().setSelectedServer(APIClient.STAGING);
+                break;
+
+            default:
+                return super.onContextItemSelected(item);
+        }
+
+        // Update the UI to show the new server
+        TextView version = (TextView)findViewById(R.id.version_textview);
+        version.setText(MiscUtils.getAppInfoString(this));
+        return true;
     }
 
     private void populateAutoComplete() {
@@ -163,7 +199,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            final APIClient client = new APIClient(this, APIClient.PRODUCTION);
+            final APIClient client = MainActivity.getInstance().getAPIClient();
             client.signIn(email, password, new APIClient.SignInListener() {
                 @Override
                 public void signInComplete(User user, Exception exception) {

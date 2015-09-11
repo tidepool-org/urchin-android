@@ -117,7 +117,7 @@ public class APIClient {
      */
     public APIClient(Context context, String server) {
         _context = context;
-        _baseURL = __servers.get(server);
+        setServer(server);
 
         // Set up the disk cache for caching responses
         Cache cache = new DiskBasedCache(context.getCacheDir(), 1024*1024);
