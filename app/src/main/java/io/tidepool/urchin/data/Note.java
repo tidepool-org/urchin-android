@@ -21,6 +21,10 @@ public class Note extends RealmObject {
     private Date timestamp;
     private String userid;
 
+    // This is manually parsed and set from the User field in the message. We don't want
+    // a real user object- just the display name.
+    private String authorFullName;
+
     // Hashtags we parse when we get the Note from the server
     private RealmList<Hashtag> hashtags;
 
@@ -95,4 +99,13 @@ public class Note extends RealmObject {
     public void setHashtags(RealmList<Hashtag> hashtags) {
         this.hashtags = hashtags;
     }
+
+    public String getAuthorFullName() {
+        return authorFullName;
+    }
+
+    public void setAuthorFullName(String authorFullName) {
+        this.authorFullName = authorFullName;
+    }
+
 }

@@ -850,6 +850,12 @@ public class APIClient {
                     for ( int i = 0; i < messages.length(); i++ ) {
                         String msgJson = messages.getString(i);
                         Note note = gson.fromJson(msgJson, Note.class);
+
+                        // Get the fullName field from the "user" property and set it
+                        JSONObject jsonObject = new JSONObject(msgJson);
+                        JSONObject userObject = jsonObject.getJSONObject("user");
+                        note.setAuthorFullName(userObject.getString("fullName"));
+
                         note = realm.copyToRealmOrUpdate(note);
 
                         // Update the hashtags for this note.

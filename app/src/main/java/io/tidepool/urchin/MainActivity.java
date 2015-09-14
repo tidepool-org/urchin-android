@@ -548,9 +548,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
 
             if ( group != null ) {
-                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user) + " to " + MiscUtils.getPrintableNameForUser(group));
+                notesViewHolder._author.setText(note.getAuthorFullName() + " to " + MiscUtils.getPrintableNameForUser(group));
             } else {
-                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user));
+                notesViewHolder._author.setText(note.getAuthorFullName());
             }
 
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
