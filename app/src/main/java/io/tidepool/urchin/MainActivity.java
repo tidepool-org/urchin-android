@@ -2,6 +2,7 @@ package io.tidepool.urchin;
 
 import android.animation.Animator;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -10,7 +11,6 @@ import android.support.v7.widget.CardView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.SpannableString;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -27,15 +27,10 @@ import android.widget.TextView;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 import io.realm.Realm;
 import io.realm.RealmChangeListener;
@@ -54,11 +49,16 @@ import io.tidepool.urchin.util.MiscUtils;
 public class MainActivity extends AppCompatActivity implements RealmChangeListener, SwipeRefreshLayout.OnRefreshListener {
     private static final String LOG_TAG = "MainActivity";
 
-    // What server we will connect to
-    public static final String SERVER = APIClient.PRODUCTION;
+    // What server we will connect to by default
+    private static final String DEFAULT_SERVER = APIClient.PRODUCTION;
 
     // Activity request codes
     private static final int REQ_LOGIN = 1;
+    private static final int REQ_NOTE = 2;
+
+    // Key into preferences for the ID of the user filter
+    private static final String PREFS_KEY_USERID = "PrefsUserId";
+    private static final String PREFS_KEY_SERVER = "Server";
 
     private APIClient _apiClient;
 
@@ -73,6 +73,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private LinearLayout _dropDownLayout;
     private DateFormat _cardDateFormat = new SimpleDateFormat("EEEE MM/dd/yy h:mm a", Locale.getDefault());
     private ListView _dropDownListView;
+    private TextView _footerTextView;
+
+    // State stuff
+    private boolean _justAdded;
 
     // Access to our instance
     private static MainActivity __thisInstance;
@@ -107,6 +111,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         });
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
 
+        // Add a footer with the version / server
+        LinearLayout footerLayout = (LinearLayout)getLayoutInflater().inflate(R.layout.version, null);
+        _footerTextView = (TextView)footerLayout.findViewById(R.id.version_textview);
+        _footerTextView.setText(MiscUtils.getAppInfoString(this));
+
+        _dropDownListView.addFooterView(footerLayout);
+
         _addButton = (ImageButton)findViewById(R.id.add_button);
         _addButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -138,25 +149,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
 
         // Create our API client on the appropriate service
-        _apiClient = new APIClient(this, SERVER);
-        String sessionId = _apiClient.getSessionId();
-        User user = _apiClient.getUser();
-        if ( sessionId == null || user == null ) {
-            // We need to sign in
-            Intent loginIntent = new Intent(this, LoginActivity.class);
-            startActivityForResult(loginIntent, REQ_LOGIN);
-        } else {
-            updateUser();
-        }
-
-        // Select the current user, if present in the db
-        CurrentUser current = realm.where(CurrentUser.class).findFirst();
-        if ( current != null ) {
-            setUserFilter(current.getCurrentUser());
-        } else {
-            String title = getResources().getString(R.string.all_notes);
-            setTitle(title);
-        }
+        _apiClient = new APIClient(this, getSelectedServer());
 
         // BSK: We will leave the realm instance open for the lifetime of this activity,
         // and will perform an extra close() in onDestroy().
@@ -203,7 +196,38 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     @Override
     protected void onStart() {
         super.onStart();
-        populateNotes();
+
+        Log.d(LOG_TAG, "onStart");
+
+        String sessionId = _apiClient.getSessionId();
+        User user = _apiClient.getUser();
+        if ( sessionId == null || user == null ) {
+            // We need to sign in
+            showLogin();
+        } else {
+            // Refresh the session token
+            _apiClient.refreshToken(new APIClient.RefreshTokenListener() {
+                @Override
+                public void tokenRefreshed(Exception error) {
+                    Log.d(LOG_TAG, "tokenRefreshed: " + error);
+
+                    if (error != null) {
+                        // We could not refresh. Need to log in.
+                        showLogin();
+                    } else {
+                        updateUser();
+                        // Select the current user, if present in the db
+                        restoreUserFilter();
+
+                        // Launch the "Add Note" unless we're returning from that activity
+                        if (!_justAdded) {
+                            addButtonTapped();
+                        }
+                        _justAdded = false;
+                    }
+                }
+            });
+        }
 
         Realm realm = Realm.getInstance(this);
         realm.addChangeListener(this);
@@ -244,6 +268,11 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showLogin() {
+        Intent loginIntent = new Intent(this, LoginActivity.class);
+        startActivityForResult(loginIntent, REQ_LOGIN);
     }
 
     private void showDropDownMenu(boolean show) {
@@ -319,6 +348,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 } else {
                     finish();
                 }
+                break;
+
+            case REQ_NOTE:
+                // Got back from "Add Note" screen
+                Log.d(LOG_TAG, "ADD returned");
+                _justAdded = true;
+                break;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -326,7 +362,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     protected void addButtonTapped() {
         Log.d(LOG_TAG, "Add Tapped");
         Intent intent = new Intent(this, NewNoteActivity.class);
-        startActivity(intent);
+        startActivityForResult(intent, REQ_NOTE);
     }
 
     /**
@@ -367,6 +403,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
         } else {
             _swipeRefreshLayout.setRefreshing(false);
+            restoreUserFilter();
         }
     }
 
@@ -381,7 +418,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 if (position == 0) {
                     // All users
                     setUserFilter(null);
-                } else if (position == parent.getAdapter().getCount() - 1) {
+                } else if (position == parent.getAdapter().getCount() - 2) {
                     signOut();
                 } else {
                     User user = (User) _dropDownListView.getAdapter().getItem(position);
@@ -390,17 +427,22 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                 showDropDownMenu(false);
             }
         });
+        _footerTextView.setText(MiscUtils.getAppInfoString(this));
     }
 
     private void setUserFilter(User user) {
         // Set the current user in the database
+
+        // First get the user out of the database
+        User apiClientUser = _apiClient.getUser();
+
         Realm realm = Realm.getInstance(this);
         realm.beginTransaction();
         realm.where(CurrentUser.class).findAll().clear();
         CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
         if ( user == null ) {
             // We want a real user object in here- it's the logged-in user.
-            newCurrentUser.setCurrentUser(_apiClient.getUser());
+            newCurrentUser.setCurrentUser(apiClientUser);
         } else {
             newCurrentUser.setCurrentUser(user);
         }
@@ -410,6 +452,26 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // Set our local copy and update the list of notes
         _userFilter = user;
         populateNotes();
+
+        // Save the last user in preferences
+        if ( user == null ) {
+            getPreferences(Context.MODE_PRIVATE).edit()
+                    .remove(PREFS_KEY_USERID).apply();
+        } else {
+            getPreferences(Context.MODE_PRIVATE).edit()
+                    .putString(PREFS_KEY_USERID, user.getUserid()).apply();
+        }
+    }
+
+    private void restoreUserFilter() {
+        String userId = getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_USERID, null);
+        User user = null;
+        if ( userId != null ) {
+            Realm realm = Realm.getInstance(this);
+            user = realm.where(User.class).equalTo("userid", userId).findFirst();
+            realm.close();
+        }
+        setUserFilter(user);
     }
 
     private void signOut() {
@@ -419,8 +481,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _apiClient.signOut(new APIClient.SignOutListener() {
             @Override
             public void signedOut(int responseCode, Exception error) {
-                Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
-                startActivityForResult(loginIntent, REQ_LOGIN);
+                showLogin();
             }
         });
     }
@@ -430,6 +491,18 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // Swipe view refresh
         Log.d(LOG_TAG, "OnRefresh");
         updateUser();
+    }
+
+    public String getSelectedServer() {
+        return getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_SERVER, DEFAULT_SERVER);
+    }
+
+    public void setSelectedServer(String server) {
+        getPreferences(Context.MODE_PRIVATE).edit().putString(PREFS_KEY_SERVER, server).apply();
+        _apiClient = new APIClient(this, server);
+
+        // Remove everything from our database
+        _apiClient.clearDatabase();
     }
 
     public class NotesViewHolder extends RecyclerView.ViewHolder {
@@ -475,9 +548,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
 
             if ( group != null ) {
-                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user) + " to " + MiscUtils.getPrintableNameForUser(group));
+                notesViewHolder._author.setText(note.getAuthorFullName() + " to " + MiscUtils.getPrintableNameForUser(group));
             } else {
-                notesViewHolder._author.setText(MiscUtils.getPrintableNameForUser(user));
+                notesViewHolder._author.setText(note.getAuthorFullName());
             }
 
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
@@ -512,7 +585,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         Log.d(LOG_TAG, "Edit note: " + note.getMessagetext());
         Intent intent = new Intent(this, NewNoteActivity.class);
         intent.putExtra(NewNoteActivity.ARG_EDIT_NOTE_ID, note.getId());
-        startActivity(intent);
+        startActivityForResult(intent, REQ_NOTE);
     }
 
 

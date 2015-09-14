@@ -7,4 +7,5 @@
     <dimen name="add_button_margin">15dp</dimen>
     <dimen name="add_button_elevation">4dp</dimen>
     <dimen name="hashtag_height">56dp</dimen>
+    <dimen name="post_button_padding">8dp</dimen>
 </resources>

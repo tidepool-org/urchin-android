@@ -117,7 +117,7 @@ public class APIClient {
      */
     public APIClient(Context context, String server) {
         _context = context;
-        _baseURL = __servers.get(server);
+        setServer(server);
 
         // Set up the disk cache for caching responses
         Cache cache = new DiskBasedCache(context.getCacheDir(), 1024*1024);
@@ -297,6 +297,71 @@ public class APIClient {
         req.setTag(_context);
         _requestQueue.add(req);
         return req;
+    }
+
+
+    public abstract static class RefreshTokenListener {
+        public abstract void tokenRefreshed(Exception error);
+    }
+    public Request refreshToken(final RefreshTokenListener listener) {
+        Log.d(LOG_TAG, "refreshToken");
+
+        String sessionId = getSessionId();
+        if ( sessionId == null ) {
+            listener.tokenRefreshed(new Exception("No token to refresh"));
+            return null;
+        }
+
+        // Build the URL
+        String url = null;
+        try {
+            url = new URL(getBaseURL(), "/auth/login").toString();
+        } catch (MalformedURLException e) {
+            listener.tokenRefreshed(e);
+            return null;
+        }
+
+        StringRequest request = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                listener.tokenRefreshed(null);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.tokenRefreshed(error);
+            }
+        }) {
+            @Override
+            protected Response<String> parseNetworkResponse(NetworkResponse response) {
+                String sessionId = response.headers.get(HEADER_SESSION_ID);
+                if ( sessionId != null ) {
+                    Realm realm = Realm.getInstance(_context);
+
+                    realm.beginTransaction();
+
+                    // Get the current session
+                    Session s = realm.where(Session.class).findAll().first();
+
+                    // Update the session ID
+                    s.setSessionId(sessionId);
+
+                    Log.d(LOG_TAG, "Session ID refreshed: " + sessionId);
+
+                    realm.commitTransaction();
+                    realm.close();
+                }
+                return super.parseNetworkResponse(response);
+            }
+
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return APIClient.this.getHeaders();
+            }
+        };
+
+        _requestQueue.add(request);
+        return request;
     }
 
     public abstract static class SignOutListener {
@@ -785,6 +850,12 @@ public class APIClient {
                     for ( int i = 0; i < messages.length(); i++ ) {
                         String msgJson = messages.getString(i);
                         Note note = gson.fromJson(msgJson, Note.class);
+
+                        // Get the fullName field from the "user" property and set it
+                        JSONObject jsonObject = new JSONObject(msgJson);
+                        JSONObject userObject = jsonObject.getJSONObject("user");
+                        note.setAuthorFullName(userObject.getString("fullName"));
+
                         note = realm.copyToRealmOrUpdate(note);
 
                         // Update the hashtags for this note.

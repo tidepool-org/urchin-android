@@ -2,7 +2,7 @@
     <string name="app_name">Blip Notes</string>
 
     <string name="action_settings">Settings</string>
-    <string name="action_sign_out">Sign out</string>
+    <string name="action_sign_out">Logout</string>
 
     <!-- Base font family to use for the application -->
     <string name="font_family">sans-serif-light</string>
@@ -28,6 +28,14 @@
     <string name="delete_note_confirm">Are you sure you want to permanently delete this note?</string>
     <string name="note_deleted">The note was deleted</string>
     <string name="note_deleted_error">An error occurred while trying to delete this note. Please try again later.</string>
+    <string name="discard_note_title">Discard Note?</string>
+    <string name="discard_note_message">If you close this note, your note will be lost.</string>
+    <string name="save_changes_title">Save changes?</string>
+    <string name="save_changes_message">You have made changes to this note. Would you like to save these changes?</string>
+    <string name="button_discard">Discard</string>
+    <string name="production">Production</string>
+    <string name="staging">Staging</string>
+    <string name="development">Development</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">

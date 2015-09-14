@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import io.realm.Realm;
+import io.realm.RealmChangeListener;
 import io.realm.RealmResults;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.CurrentUser;
@@ -57,7 +58,7 @@ import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
 
-public class NewNoteActivity extends AppCompatActivity {
+public class NewNoteActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "NewNote";
 
     // Arguments we can take to edit instead of create a new note
@@ -168,6 +169,8 @@ public class NewNoteActivity extends AppCompatActivity {
 
         // Set our current user to whatever is in the database, or the first user found if none exists
         Realm realm = Realm.getInstance(this);
+        realm.addChangeListener(this);
+
         CurrentUser currentUser = realm.where(CurrentUser.class).findFirst();
         if ( currentUser != null ) {
             setCurrentUser(currentUser.getCurrentUser());
@@ -193,6 +196,13 @@ public class NewNoteActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Realm realm = Realm.getInstance(this);
+        realm.removeChangeListener(this);
+    }
+
     private void setEditing(String messageId) {
         Realm realm = Realm.getInstance(this);
         Note note = realm.where(Note.class).equalTo("id", messageId).findFirst();
@@ -209,18 +219,20 @@ public class NewNoteActivity extends AppCompatActivity {
 
     private void setCurrentUser(User user) {
         _currentUser = user;
-        setTitle(user.getProfile().getFullName());
-        Realm realm = Realm.getInstance(this);
-        realm.beginTransaction();
-        RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
-        if ( results.size() > 0 ) {
-            results.clear();
-        }
+        if ( user != null && user.getProfile() != null ) {
+            setTitle(user.getProfile().getFullName());
+            Realm realm = Realm.getInstance(this);
+            realm.beginTransaction();
+            RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
+            if (results.size() > 0) {
+                results.clear();
+            }
 
-        CurrentUser u = realm.createObject(CurrentUser.class);
-        u.setCurrentUser(user);
-        realm.commitTransaction();
-        realm.close();
+            CurrentUser u = realm.createObject(CurrentUser.class);
+            u.setCurrentUser(user);
+            realm.commitTransaction();
+            realm.close();
+        }
     }
 
     private void formatText(String text, int selectionStart, int selectionEnd) {
@@ -300,8 +312,69 @@ public class NewNoteActivity extends AppCompatActivity {
         if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
             showDropDownMenu(false);
         } else {
-            super.onBackPressed();
+            if ( wasEdited() ) {
+                confirmExit();
+            } else {
+                super.onBackPressed();
+            }
         }
+    }
+
+    private void confirmExit() {
+        boolean editing = (_editingNote != null);
+        int title = editing ? R.string.save_changes_title : R.string.discard_note_title;
+        int message = editing ? R.string.save_changes_message : R.string.discard_note_message;
+        int ok = editing ? R.string.button_save : android.R.string.ok;
+        int cancel = editing ? R.string.button_discard : android.R.string.cancel;
+
+        DialogInterface.OnClickListener okListener;
+        DialogInterface.OnClickListener cancelListener;
+
+        if ( editing ) {
+            okListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Save the changes and exit. Just click Post and we're done.
+                    postClicked();
+                }
+            };
+            cancelListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Discard the changes and exit.
+                    NewNoteActivity.super.onBackPressed();
+                }
+            };
+        } else {
+            okListener = new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    // Discard the changes and exit
+                    NewNoteActivity.super.onBackPressed();
+                }
+            };
+
+            // Don't exit
+            cancelListener = null;
+        }
+
+        // Build and show the dialog
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(ok, okListener)
+                .setNegativeButton(cancel, cancelListener)
+                .create().show();
+    }
+
+    private boolean wasEdited() {
+        if ( _editingNote == null ) {
+            return _noteEditText.getText().length() > 0;
+        }
+
+        // We are editing a note. Return true if the text or date has changed
+        return !(_noteEditText.getText().toString().equals(_editingNote.getMessagetext()) &&
+                 _noteTime.equals(_editingNote.getTimestamp()));
     }
 
     private void showDropDownMenu(boolean show) {
@@ -564,5 +637,13 @@ public class NewNoteActivity extends AppCompatActivity {
 
         _noteEditText.getText().replace(Math.min(start, end), Math.max(start, end),
                 tag, 0, tag.length());
+    }
+
+    @Override
+    public void onChange() {
+        // Realm database has changed
+        Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list and hashtag view");
+        populateDropDownList();
+        setupHashtags();
     }
 }
