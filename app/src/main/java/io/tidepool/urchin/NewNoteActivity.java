@@ -3,6 +3,7 @@ package io.tidepool.urchin;
 import android.animation.Animator;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
@@ -247,19 +248,29 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     private void postClicked() {
         Log.d(LOG_TAG, "POST");
+
+        // Put up a wait dialog while we post the message
+        final ProgressDialog pd = new ProgressDialog(this);
+        pd.setTitle(_editingNote != null ? R.string.updating_note : R.string.posting_note);
+        pd.setIcon(getResources().getDrawable(R.mipmap.ic_launcher));
+        pd.show();
+
         APIClient api = MainActivity.getInstance().getAPIClient();
         Note note = new Note();
         note.setGroupid(_currentUser.getUserid());
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
         note.setUserid(api.getUser().getUserid());
-        note.setGuid(UUID.randomUUID().toString());
+        if ( note.getGuid() == null ) {
+            note.setGuid(UUID.randomUUID().toString());
+        }
 
         if ( _editingNote == null ) {
             // We are creating a new note
             api.postNote(note, new APIClient.PostNoteListener() {
                 @Override
                 public void notePosted(Note note, Exception error) {
+                    pd.dismiss();
                     if (error == null) {
                         // Note was posted.
                         Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
@@ -276,6 +287,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             api.updateNote(note, new APIClient.UpdateNoteListener() {
                 @Override
                 public void noteUpdated(Note note, Exception error) {
+                    pd.dismiss();
                     if (error == null) {
                         // Note was posted.
                         Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
