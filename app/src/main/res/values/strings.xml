@@ -36,6 +36,9 @@
     <string name="production">Production</string>
     <string name="staging">Staging</string>
     <string name="development">Development</string>
+    <string name="posting_note">Posting Note</string>
+    <string name="posting_note_message">Posting your note...</string>
+    <string name="updating_note">Updating your note...</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">
