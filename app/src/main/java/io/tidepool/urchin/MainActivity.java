@@ -509,15 +509,14 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         public TextView _author;
         public TextView _date;
         public TextView _body;
-        public ImageView _editImageView;
+        public TextView _editTextView;
 
         public NotesViewHolder(View itemView) {
             super(itemView);
             _author = (TextView)itemView.findViewById(R.id.note_author);
             _date = (TextView)itemView.findViewById(R.id.note_date);
             _body = (TextView)itemView.findViewById(R.id.note_body);
-            _editImageView = (ImageView)itemView.findViewById(R.id.edit_note_button);
-            _editImageView.setColorFilter(getResources().getColor(R.color.edit_button_tint));
+            _editTextView = (TextView)itemView.findViewById(R.id.edit_note_button);
         }
     }
 
@@ -560,15 +559,15 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
 
             if ( note.getUserid().equals(_apiClient.getUser().getUserid())) {
-                notesViewHolder._editImageView.setVisibility(View.VISIBLE);
-                notesViewHolder._editImageView.setOnClickListener(new View.OnClickListener() {
+                notesViewHolder._editTextView.setVisibility(View.VISIBLE);
+                notesViewHolder._editTextView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         editNoteClicked(note);
                     }
                 });
             } else {
-                notesViewHolder._editImageView.setVisibility(View.GONE);
+                notesViewHolder._editTextView.setVisibility(View.GONE);
             }
 
             realm.close();

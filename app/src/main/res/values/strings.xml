@@ -11,7 +11,7 @@
     <!-- Strings for the New Note activity -->
     <string name="title_activity_new_note">New Note</string>
     <string name="all_notes">All Notes</string>
-    <string name="change">change</string>
+    <string name="edit">edit</string>
     <string name="add_your_note_here">What\'s going on?</string>
     <string name="post">Post</string>
     <string name="action_change_time">Change Time</string>

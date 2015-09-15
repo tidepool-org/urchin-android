@@ -30,13 +30,13 @@
 
             <TextView
                 android:id="@+id/change_label"
-                style="@android:style/TextAppearance.Medium"
+                style="@android:style/TextAppearance.Small"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical|end"
                 android:layout_weight="0.25"
                 android:gravity="end"
-                android:text="@string/change"
+                android:text="@string/edit"
                 android:textColor="@color/link"/>
         </LinearLayout>
 
@@ -48,7 +48,7 @@
             android:layout_below="@id/date_time_layout"
             android:layout_marginBottom="4dp"
             android:layout_marginTop="4dp"
-            android:background="@android:color/darker_gray"/>
+            android:background="@color/hashtag_separator"/>
 
         <!-- Hashtag view -->
         <android.support.v7.widget.RecyclerView
@@ -65,7 +65,7 @@
             android:layout_below="@id/hashtag_recyclerview"
             android:layout_marginBottom="4dp"
             android:layout_marginTop="4dp"
-            android:background="@android:color/darker_gray"/>
+            android:background="@color/hashtag_separator"/>
 
         <!-- Edit area -->
         <ScrollView

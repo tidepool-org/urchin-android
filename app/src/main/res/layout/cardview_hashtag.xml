@@ -4,7 +4,8 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:layout_margin="5dp"
-                                    card_view:cardCornerRadius="18sp">
+                                    card_view:cardElevation="0dp"
+                                    card_view:cardCornerRadius="20sp">
     <TextView
         style="@android:style/TextAppearance.Medium"
         android:id="@+id/hashtag_textview"
