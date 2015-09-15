@@ -538,7 +538,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             Realm realm = Realm.getInstance(MainActivity.this);
 
-            User user = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
             User group = null;
             String groupId = note.getGroupid();
             String userId = note.getUserid();
