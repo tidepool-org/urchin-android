@@ -30,13 +30,13 @@
 
             <TextView
                 android:id="@+id/change_label"
-                style="@android:style/TextAppearance.Medium"
+                style="@android:style/TextAppearance.Small"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical|end"
                 android:layout_weight="0.25"
                 android:gravity="end"
-                android:text="@string/change"
+                android:text="@string/edit"
                 android:textColor="@color/link"/>
         </LinearLayout>
 
@@ -48,7 +48,7 @@
             android:layout_below="@id/date_time_layout"
             android:layout_marginBottom="4dp"
             android:layout_marginTop="4dp"
-            android:background="@android:color/darker_gray"/>
+            android:background="@color/hashtag_separator"/>
 
         <!-- Hashtag view -->
         <android.support.v7.widget.RecyclerView
@@ -65,61 +65,27 @@
             android:layout_below="@id/hashtag_recyclerview"
             android:layout_marginBottom="4dp"
             android:layout_marginTop="4dp"
-            android:background="@android:color/darker_gray"/>
+            android:background="@color/hashtag_separator"/>
 
         <!-- Edit area -->
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
+
+        <EditText
+            android:id="@+id/note_edit_text"
+            style="@android:style/TextAppearance.Large"
             android:layout_below="@id/sep2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="16dp"
+            android:background="@color/new_note_bg"
+            android:gravity="start|top"
+            android:hint="@string/add_your_note_here"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minHeight="120sp"
+            android:padding="8dp"
             >
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <EditText
-                    android:id="@+id/note_edit_text"
-                    style="@android:style/TextAppearance.Large"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:background="@color/new_note_bg"
-                    android:gravity="start|top"
-                    android:hint="@string/add_your_note_here"
-                    android:inputType="textMultiLine|textCapSentences"
-                    android:minHeight="120sp"
-                    android:padding="8dp"
-                    >
-
-                    <requestFocus/>
-                </EditText>
-
-                <!-- Post button -->
-                <LinearLayout
-                    android:id="@+id/button_layout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="0.65"/>
-
-                    <Button
-                        android:id="@+id/post_button"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.35"
-                        android:padding="@dimen/post_button_padding"
-                        android:text="@string/post"/>
-                </LinearLayout>
-            </LinearLayout>
-        </ScrollView>
-
+            <requestFocus/>
+        </EditText>
     </RelativeLayout>
 
     <!-- Hidden drop-down menu for selecting a user -->

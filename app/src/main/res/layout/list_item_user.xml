@@ -5,28 +5,36 @@
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:layout_margin="4dp"
-              android:minHeight="48dp">
+              android:minHeight="@dimen/user_list_height">
 
-    <View
-        android:id="@+id/indent"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="0.1"/>
-
-    <TextView
-        android:id="@+id/name_textview"
-        style="@style/UserMenuText"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="12dp"/>
+        android:layout_gravity="bottom"
+        android:minHeight="@dimen/user_list_height">
 
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:scaleType="fitXY"
-        android:layout_gravity="end|center_vertical"
-        android:layout_marginEnd="12dp"
-        android:src="@drawable/right"/>
+        <View
+            android:id="@+id/indent"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.1"/>
 
+        <TextView
+            android:id="@+id/name_textview"
+            style="@style/UserMenuText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"/>
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="12dp"
+            android:scaleType="fitXY"
+            android:src="@drawable/right"/>
+
+    </LinearLayout>
 </LinearLayout>

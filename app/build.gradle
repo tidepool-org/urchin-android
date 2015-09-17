@@ -8,8 +8,8 @@ android {
         applicationId "io.tidepool.urchin"
         minSdkVersion 17
         targetSdkVersion 23
-        versionCode 4
-        versionName "0.4"
+        versionCode 5
+        versionName "0.5"
     }
     buildTypes {
         release {

@@ -140,6 +140,14 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
             nameText.setTypeface(null, Typeface.NORMAL);
         }
 
+        float userListHeight = v.getContext().getResources().getDimension(R.dimen.user_list_height);
+        if ( user.getUserid().equals(TAG_SIGNOUT) ) {
+            // We need to make this layout a bit taller to add space before the "Logout" text
+            v.setMinimumHeight((int)userListHeight * 2);
+        } else {
+            v.setMinimumHeight((int)userListHeight);
+        }
+
         return v;
     }
 }

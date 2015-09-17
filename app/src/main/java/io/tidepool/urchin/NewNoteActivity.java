@@ -3,6 +3,7 @@ package io.tidepool.urchin;
 import android.animation.Animator;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
@@ -12,7 +13,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
-import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -21,7 +21,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -57,6 +56,7 @@ import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
+import io.tidepool.urchin.util.MiscUtils;
 
 public class NewNoteActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "NewNote";
@@ -72,7 +72,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
-    private Button _postButton;
 
     private User _currentUser;
 
@@ -112,15 +111,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             @Override
             public void onClick(View v) {
                 v.performLongClick();
-            }
-        });
-
-        // Respond to the button
-        _postButton = (Button)findViewById(R.id.post_button);
-        _postButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                postClicked();
             }
         });
 
@@ -213,14 +203,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         SpannableString ss = new SpannableString(note.getMessagetext());
         HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
         _noteEditText.setText(ss);
-        _postButton.setText(R.string.button_save);
         _editingNote = note;
     }
 
     private void setCurrentUser(User user) {
         _currentUser = user;
-        if ( user != null && user.getProfile() != null ) {
-            setTitle(user.getProfile().getFullName());
+        if ( user != null ) {
+            setTitle(MiscUtils.getPrintableNameForUser(_currentUser));
             Realm realm = Realm.getInstance(this);
             realm.beginTransaction();
             RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
@@ -245,21 +234,32 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         _updatingText = false;
     }
 
-    private void postClicked() {
+    private void postOrUpdate() {
         Log.d(LOG_TAG, "POST");
+
+        // Put up a wait dialog while we post the message
+        final ProgressDialog pd = new ProgressDialog(this);
+        pd.setTitle(_editingNote != null ? R.string.updating_note : R.string.posting_note);
+        pd.setIcon(getResources().getDrawable(R.mipmap.ic_launcher));
+        pd.show();
+
         APIClient api = MainActivity.getInstance().getAPIClient();
         Note note = new Note();
         note.setGroupid(_currentUser.getUserid());
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
         note.setUserid(api.getUser().getUserid());
-        note.setGuid(UUID.randomUUID().toString());
+        note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
+        if ( note.getGuid() == null ) {
+            note.setGuid(UUID.randomUUID().toString());
+        }
 
         if ( _editingNote == null ) {
             // We are creating a new note
             api.postNote(note, new APIClient.PostNoteListener() {
                 @Override
                 public void notePosted(Note note, Exception error) {
+                    pd.dismiss();
                     if (error == null) {
                         // Note was posted.
                         Toast.makeText(NewNoteActivity.this, R.string.note_posted, Toast.LENGTH_LONG).show();
@@ -276,6 +276,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             api.updateNote(note, new APIClient.UpdateNoteListener() {
                 @Override
                 public void noteUpdated(Note note, Exception error) {
+                    pd.dismiss();
                     if (error == null) {
                         // Note was posted.
                         Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
@@ -335,7 +336,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     // Save the changes and exit. Just click Post and we're done.
-                    postClicked();
+                    postOrUpdate();
                 }
             };
             cancelListener = new DialogInterface.OnClickListener() {
@@ -442,7 +443,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // No menu for us.
         MenuInflater inflater = getMenuInflater();
         if ( _editingNote == null ) {
-            inflater.inflate(R.menu.menu_main, menu);
+            inflater.inflate(R.menu.menu_new_note, menu);
         } else {
             inflater.inflate(R.menu.menu_edit_note, menu);
         }
@@ -476,6 +477,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                     .setNegativeButton(android.R.string.no, null)
                     .setIcon(getResources().getDrawable(R.mipmap.ic_launcher))
                     .show();
+            return true;
+        }
+
+        if ( id == R.id.action_save_note ) {
+            postOrUpdate();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -642,8 +649,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public void onChange() {
         // Realm database has changed
+        Realm realm = Realm.getInstance(this);
+        realm.removeChangeListener(this);
         Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list and hashtag view");
         populateDropDownList();
         setupHashtags();
+        setCurrentUser(_currentUser);
+        realm.addChangeListener(this);
     }
 }

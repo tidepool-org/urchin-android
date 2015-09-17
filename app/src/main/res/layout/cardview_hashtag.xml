@@ -4,15 +4,24 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:layout_margin="5dp"
-                                    card_view:cardCornerRadius="18sp">
-    <TextView
-        style="@android:style/TextAppearance.Medium"
-        android:id="@+id/hashtag_textview"
+                                    card_view:cardCornerRadius="@dimen/hashtag_radius"
+                                    card_view:cardElevation="0dp">
+
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center|center_vertical"
-        android:textAlignment="center"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"/>
+        android:background="@drawable/hashtag_background">
+
+        <TextView
+            android:id="@+id/hashtag_textview"
+            style="@android:style/TextAppearance.Medium"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center|center_vertical"
+            android:paddingEnd="12dp"
+            android:paddingStart="12dp"
+            android:textAlignment="center"/>
+
+    </FrameLayout>
 
 </android.support.v7.widget.CardView>
