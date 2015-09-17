@@ -56,6 +56,7 @@ import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
+import io.tidepool.urchin.util.MiscUtils;
 
 public class NewNoteActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "NewNote";
@@ -248,6 +249,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
         note.setUserid(api.getUser().getUserid());
+        note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
         if ( note.getGuid() == null ) {
             note.setGuid(UUID.randomUUID().toString());
         }
