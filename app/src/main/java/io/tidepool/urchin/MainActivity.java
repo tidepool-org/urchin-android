@@ -75,6 +75,11 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private ListView _dropDownListView;
     private TextView _footerTextView;
 
+    private Date _lastFetchDate;
+    private boolean _currentlyFetching;
+    private int _remainingUserFetchCount;
+    private boolean _allDataFetched;
+
     // State stuff
     private boolean _justAdded;
 
@@ -98,6 +103,18 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         _recyclerView = (RecyclerView)findViewById(R.id.recycler_view);
         _recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        _recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                LinearLayoutManager lm = (LinearLayoutManager)recyclerView.getLayoutManager();
+                int pos = lm.findFirstVisibleItemPosition();
+                if ( pos >= lm.getItemCount() - 10 ) {
+                    // We've neared the end of the set of data. Get more.
+                    fetchMoreData();
+                }
+            }
+        });
 
         _swipeRefreshLayout = (SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
         _swipeRefreshLayout.setOnRefreshListener(this);
@@ -385,6 +402,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         c.add(Calendar.MONTH, -3);
         final Date from = c.getTime();
 
+        _lastFetchDate = from;
+        _allDataFetched = false;
+
         if ( userIds != null ) {
             for (SharedUserId userId : userIds) {
                 _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
@@ -404,6 +424,51 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         } else {
             _swipeRefreshLayout.setRefreshing(false);
             restoreUserFilter();
+        }
+    }
+
+    private void fetchMoreData() {
+
+        if ( !_currentlyFetching && !_allDataFetched) {
+            Log.d(LOG_TAG, "fetchMoreData");
+
+            _currentlyFetching = true;
+            _swipeRefreshLayout.setRefreshing(true);
+
+            Realm realm = Realm.getInstance(this);
+            List<SharedUserId> userIds = realm.where(SharedUserId.class).findAll();
+
+            final Date to = _lastFetchDate;
+            Calendar c = Calendar.getInstance();
+            c.setTime(to);
+            c.add(Calendar.MONTH, -3);
+            final Date from = c.getTime();
+
+            _remainingUserFetchCount = userIds.size();
+
+            Log.d(LOG_TAG, "Fetching notes from " + from + " to " + to);
+
+            final int startNoteCount = _recyclerView.getAdapter().getItemCount();
+
+            for ( SharedUserId userId : userIds ) {
+                _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
+                    @Override
+                    public void notesReceived(RealmList<Note> notes, Exception error) {
+                        _remainingUserFetchCount--;
+                        if ( _remainingUserFetchCount <= 0 ) {
+                            _currentlyFetching = false;
+                            _swipeRefreshLayout.setRefreshing(false);
+
+                            if ( startNoteCount == _recyclerView.getAdapter().getItemCount() ) {
+                                // No more data, it appears.
+                                Log.d(LOG_TAG, "No more data received- assuming this is the end.");
+                                _allDataFetched = true;
+                            }
+                        }
+                    }
+                });
+            }
+            realm.close();
         }
     }
 
@@ -490,6 +555,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     public void onRefresh() {
         // Swipe view refresh
         Log.d(LOG_TAG, "OnRefresh");
+        _allDataFetched = false;
         updateUser();
     }
 
