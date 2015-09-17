@@ -849,6 +849,7 @@ public class APIClient {
 
                     for ( int i = 0; i < messages.length(); i++ ) {
                         String msgJson = messages.getString(i);
+
                         Note note = gson.fromJson(msgJson, Note.class);
 
                         // Get the fullName field from the "user" property and set it
@@ -883,10 +884,16 @@ public class APIClient {
                         noteList.add(note);
                     }
                 } catch (JSONException e) {
+                    Log.e(LOG_TAG, "Error parsing notes: " + e);
                     realm.cancelTransaction();
                     listener.notesReceived(null, e);
                     realm.close();
                     return;
+                } catch (com.google.gson.JsonSyntaxException e) {
+                    Log.e(LOG_TAG, "Error parsing notes: " + e);
+                    realm.cancelTransaction();
+                    listener.notesReceived(null, e);
+                    realm.close();
                 }
 
                 realm.commitTransaction();
