@@ -13,7 +13,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
-import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -22,7 +21,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -73,7 +71,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
-    private Button _postButton;
 
     private User _currentUser;
 
@@ -113,15 +110,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             @Override
             public void onClick(View v) {
                 v.performLongClick();
-            }
-        });
-
-        // Respond to the button
-        _postButton = (Button)findViewById(R.id.post_button);
-        _postButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                postClicked();
             }
         });
 
@@ -214,7 +202,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         SpannableString ss = new SpannableString(note.getMessagetext());
         HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
         _noteEditText.setText(ss);
-        _postButton.setText(R.string.button_save);
         _editingNote = note;
     }
 
@@ -246,7 +233,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         _updatingText = false;
     }
 
-    private void postClicked() {
+    private void postOrUpdate() {
         Log.d(LOG_TAG, "POST");
 
         // Put up a wait dialog while we post the message
@@ -347,7 +334,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     // Save the changes and exit. Just click Post and we're done.
-                    postClicked();
+                    postOrUpdate();
                 }
             };
             cancelListener = new DialogInterface.OnClickListener() {
@@ -454,7 +441,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // No menu for us.
         MenuInflater inflater = getMenuInflater();
         if ( _editingNote == null ) {
-            inflater.inflate(R.menu.menu_main, menu);
+            inflater.inflate(R.menu.menu_new_note, menu);
         } else {
             inflater.inflate(R.menu.menu_edit_note, menu);
         }
@@ -488,6 +475,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                     .setNegativeButton(android.R.string.no, null)
                     .setIcon(getResources().getDrawable(R.mipmap.ic_launcher))
                     .show();
+            return true;
+        }
+
+        if ( id == R.id.action_save_note ) {
+            postOrUpdate();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
