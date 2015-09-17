@@ -208,8 +208,8 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     private void setCurrentUser(User user) {
         _currentUser = user;
-        if ( user != null && user.getProfile() != null ) {
-            setTitle(user.getProfile().getFullName());
+        if ( user != null ) {
+            setTitle(MiscUtils.getPrintableNameForUser(_currentUser));
             Realm realm = Realm.getInstance(this);
             realm.beginTransaction();
             RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
@@ -649,8 +649,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public void onChange() {
         // Realm database has changed
+        Realm realm = Realm.getInstance(this);
+        realm.removeChangeListener(this);
         Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list and hashtag view");
         populateDropDownList();
         setupHashtags();
+        setCurrentUser(_currentUser);
+        realm.addChangeListener(this);
     }
 }
