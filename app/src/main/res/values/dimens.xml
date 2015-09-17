@@ -9,4 +9,5 @@
     <dimen name="hashtag_height">56dp</dimen>
     <dimen name="post_button_padding">8dp</dimen>
     <dimen name="hashtag_radius">20sp</dimen>
+    <dimen name="user_list_height">48dp</dimen>
 </resources>
