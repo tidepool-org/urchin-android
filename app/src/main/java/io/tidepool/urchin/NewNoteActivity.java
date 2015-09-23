@@ -244,18 +244,18 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         pd.show();
 
         APIClient api = MainActivity.getInstance().getAPIClient();
+
         Note note = new Note();
-        note.setGroupid(_currentUser.getUserid());
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
-        note.setUserid(api.getUser().getUserid());
-        note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
-        if ( note.getGuid() == null ) {
-            note.setGuid(UUID.randomUUID().toString());
-        }
 
         if ( _editingNote == null ) {
             // We are creating a new note
+            note.setGroupid(_currentUser.getUserid());
+            note.setUserid(api.getUser().getUserid());
+            note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
+            note.setGuid(UUID.randomUUID().toString());
+
             api.postNote(note, new APIClient.PostNoteListener() {
                 @Override
                 public void notePosted(Note note, Exception error) {
@@ -271,15 +271,21 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 }
             });
         } else {
-            // We are updating an existing note
+            // We are updating an existing note. We only care about the ID, messagetext and timestamp.
             note.setId(_editingNote.getId());
+
             api.updateNote(note, new APIClient.UpdateNoteListener() {
                 @Override
                 public void noteUpdated(Note note, Exception error) {
                     pd.dismiss();
                     if (error == null) {
-                        // Note was posted.
+                        // Note was posted. Update the note in the database.
                         Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
+                        Realm realm = Realm.getInstance(NewNoteActivity.this);
+                        realm.beginTransaction();
+                        _editingNote.setMessagetext(note.getMessagetext());
+                        _editingNote.setTimestamp(note.getTimestamp());
+                        realm.commitTransaction();
                         finish();
                     } else {
                         String errorMessage = getResources().getString(R.string.error_updating, error.getMessage());

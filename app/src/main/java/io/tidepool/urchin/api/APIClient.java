@@ -60,6 +60,7 @@ import io.tidepool.urchin.data.Session;
 import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
+import io.tidepool.urchin.util.MiscUtils;
 
 /**
  * Created by Brian King on 8/25/15.
@@ -501,7 +502,7 @@ public class APIClient {
         try {
             messageObject = new JSONObject();
             messageObject.put("messagetext", note.getMessagetext());
-            messageObject.put("timestamp", note.getTimestamp());
+            messageObject.put("timestamp", MiscUtils.dateToJSONString(note.getTimestamp()));
         } catch (JSONException e) {
             Log.e(LOG_TAG, "Could not create edit message JSON: " + e.toString());
             listener.noteUpdated(null, e);
@@ -514,12 +515,7 @@ public class APIClient {
 
             @Override
             public void onResponse(String response) {
-                // Update was successful. Update the database to reflect the change and notify the caller
-                Realm realm = Realm.getInstance(_context);
-                realm.beginTransaction();
-                realm.copyToRealmOrUpdate(note);
-                realm.commitTransaction();
-                realm.close();
+                // Update was successful.
                 listener.noteUpdated(note, null);
             }
 
