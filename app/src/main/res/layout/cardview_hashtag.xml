@@ -8,14 +8,14 @@
                                     card_view:cardElevation="0dp">
 
     <FrameLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:background="@drawable/hashtag_background">
 
         <TextView
             android:id="@+id/hashtag_textview"
             style="@android:style/TextAppearance.Medium"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center|center_vertical"
             android:paddingEnd="12dp"
