@@ -5,7 +5,13 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.text.TextUtils;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import io.tidepool.urchin.MainActivity;
+import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.User;
 
@@ -52,5 +58,10 @@ public class MiscUtils {
         }
 
         return "v" + ver + " on " + MainActivity.getInstance().getSelectedServer();
+    }
+
+    static DateFormat _jsonDateFormat = new SimpleDateFormat(APIClient.MESSAGE_DATE_FORMAT, Locale.US);
+    public static String dateToJSONString(Date date) {
+        return _jsonDateFormat.format(date);
     }
 }

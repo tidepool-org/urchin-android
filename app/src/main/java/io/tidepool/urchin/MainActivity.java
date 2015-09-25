@@ -201,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             setTitle(title);
 
         } else {
-            _notesResultSet = realm.where(Note.class).equalTo("userid", _userFilter.getUserid())
+            _notesResultSet = realm.where(Note.class).equalTo("groupid", _userFilter.getUserid())
                     .findAllSorted("timestamp", false);
             setTitle(_userFilter.getProfile().getFullName());
         }

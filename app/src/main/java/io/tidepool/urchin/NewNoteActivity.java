@@ -135,22 +135,17 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-            }
+             }
 
             @Override
             public void afterTextChanged(Editable s) {
-                final String text = _noteEditText.getText().toString();
-                final int start = _noteEditText.getSelectionStart();
-                final int end = _noteEditText.getSelectionEnd();
-
                 if ( !_updatingText ) {
                     // Format the text once the user has stopped typing
                     _formatTextHandler.removeCallbacksAndMessages(null);
                     _formatTextHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            formatText(text, start, end);
+                            formatText();
                         }
                     }, FORMAT_TIMEOUT);
                 }
@@ -224,14 +219,22 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         }
     }
 
-    private void formatText(String text, int selectionStart, int selectionEnd) {
+    private void formatText() {
+        long startTime = System.nanoTime();
+
         _updatingText = true;
+        int selectionStart = _noteEditText.getSelectionStart();
+        int selectionEnd = _noteEditText.getSelectionEnd();
+        String text = _noteEditText.getText().toString();
         SpannableString ss = new SpannableString(text);
         Log.d(LOG_TAG, "Text: " + text);
         HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
-        _noteEditText.setText(ss);
+        _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
         _noteEditText.setSelection(selectionStart, selectionEnd);
         _updatingText = false;
+
+        long totalTime = System.nanoTime() - startTime;
+        Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
     }
 
     private void postOrUpdate() {
@@ -244,18 +247,18 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         pd.show();
 
         APIClient api = MainActivity.getInstance().getAPIClient();
+
         Note note = new Note();
-        note.setGroupid(_currentUser.getUserid());
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
-        note.setUserid(api.getUser().getUserid());
-        note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
-        if ( note.getGuid() == null ) {
-            note.setGuid(UUID.randomUUID().toString());
-        }
 
         if ( _editingNote == null ) {
             // We are creating a new note
+            note.setGroupid(_currentUser.getUserid());
+            note.setUserid(api.getUser().getUserid());
+            note.setAuthorFullName(MiscUtils.getPrintableNameForUser(_currentUser));
+            note.setGuid(UUID.randomUUID().toString());
+
             api.postNote(note, new APIClient.PostNoteListener() {
                 @Override
                 public void notePosted(Note note, Exception error) {
@@ -271,15 +274,21 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 }
             });
         } else {
-            // We are updating an existing note
+            // We are updating an existing note. We only care about the ID, messagetext and timestamp.
             note.setId(_editingNote.getId());
+
             api.updateNote(note, new APIClient.UpdateNoteListener() {
                 @Override
                 public void noteUpdated(Note note, Exception error) {
                     pd.dismiss();
                     if (error == null) {
-                        // Note was posted.
+                        // Note was posted. Update the note in the database.
                         Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
+                        Realm realm = Realm.getInstance(NewNoteActivity.this);
+                        realm.beginTransaction();
+                        _editingNote.setMessagetext(note.getMessagetext());
+                        _editingNote.setTimestamp(note.getTimestamp());
+                        realm.commitTransaction();
                         finish();
                     } else {
                         String errorMessage = getResources().getString(R.string.error_updating, error.getMessage());
