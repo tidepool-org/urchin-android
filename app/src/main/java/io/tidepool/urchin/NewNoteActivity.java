@@ -135,22 +135,17 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-            }
+             }
 
             @Override
             public void afterTextChanged(Editable s) {
-                final String text = _noteEditText.getText().toString();
-                final int start = _noteEditText.getSelectionStart();
-                final int end = _noteEditText.getSelectionEnd();
-
                 if ( !_updatingText ) {
                     // Format the text once the user has stopped typing
                     _formatTextHandler.removeCallbacksAndMessages(null);
                     _formatTextHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            formatText(text, start, end);
+                            formatText();
                         }
                     }, FORMAT_TIMEOUT);
                 }
@@ -224,14 +219,22 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         }
     }
 
-    private void formatText(String text, int selectionStart, int selectionEnd) {
+    private void formatText() {
+        long startTime = System.nanoTime();
+
         _updatingText = true;
+        int selectionStart = _noteEditText.getSelectionStart();
+        int selectionEnd = _noteEditText.getSelectionEnd();
+        String text = _noteEditText.getText().toString();
         SpannableString ss = new SpannableString(text);
         Log.d(LOG_TAG, "Text: " + text);
         HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
-        _noteEditText.setText(ss);
+        _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
         _noteEditText.setSelection(selectionStart, selectionEnd);
         _updatingText = false;
+
+        long totalTime = System.nanoTime() - startTime;
+        Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
     }
 
     private void postOrUpdate() {
