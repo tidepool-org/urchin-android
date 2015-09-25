@@ -549,7 +549,7 @@ public class APIClient {
     public static abstract class DeleteNoteListener {
         public abstract void noteDeleted(Exception error);
     }
-    public Request deleteNote(final Note note, final DeleteNoteListener listener) {
+    public Request deleteNote(Note note, final DeleteNoteListener listener) {
         String url = null;
         try {
             url = new URL(getBaseURL(), "/message/remove/" + note.getId()).toString();
@@ -558,13 +558,15 @@ public class APIClient {
             return null;
         }
 
+        final String noteId = note.getId();
+
         StringRequest request = new StringRequest(Request.Method.DELETE, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 // All is well. Delete the note from our database.
                 Realm realm = Realm.getInstance(_context);
                 realm.beginTransaction();
-                realm.where(Note.class).equalTo("id", note.getId()).findAll().clear();
+                realm.where(Note.class).equalTo("id", noteId).findAll().clear();
                 realm.commitTransaction();
                 realm.close();
                 listener.noteDeleted(null);
