@@ -651,6 +651,9 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             tag = " " + tag;
         }
 
+        // https://trello.com/c/RRylANWR - Add Space after Hashtag
+        tag += " ";
+
         _noteEditText.getText().replace(Math.min(start, end), Math.max(start, end),
                 tag, 0, tag.length());
     }
