@@ -1,9 +1,11 @@
 package io.tidepool.urchin.ui;
 
-import android.support.v7.widget.RecyclerView;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.util.List;
@@ -14,51 +16,39 @@ import io.tidepool.urchin.data.Hashtag;
 /**
  * Created by Brian King on 9/1/15.
  */
-public class HashtagAdapter extends RecyclerView.Adapter<HashtagAdapter.HashtagViewHolder> {
-    private List<Hashtag> _hashtags;
-    private OnTagTappedListener _listener;
+public class HashtagAdapter extends ArrayAdapter<Hashtag> {
+    private final Context _context;
+    private OnStarTappedListener _onStarTappedListener;
 
-    public HashtagAdapter(List<Hashtag> hashtags, OnTagTappedListener listener) {
-        _hashtags = hashtags;
-        _listener = listener;
+    public HashtagAdapter(Context context, List<Hashtag> hashtags, OnStarTappedListener starTappedListener) {
+        super(context, -1, hashtags);
+        _context = context;
+        _onStarTappedListener = starTappedListener;
+    }
+
+    public static abstract class OnStarTappedListener {
+        public abstract void onStarTapped(Hashtag hashtag);
     }
 
     @Override
-    public HashtagViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
-        View v = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.cardview_hashtag, viewGroup, false);
-        return new HashtagViewHolder(v);
-    }
+    public View getView(int position, View convertView, ViewGroup parent) {
+        final Hashtag hashtag = getItem(position);
 
-    @Override
-    public void onBindViewHolder(HashtagViewHolder holder, int position) {
-        Hashtag tag = _hashtags.get(position);
-        final String tagText = tag.getTag();
-        holder.textView.setText(tagText);
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
+        LayoutInflater inflater = (LayoutInflater)_context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View rowView = convertView != null ? convertView : inflater.inflate(R.layout.list_item_hashtag, parent, false);
+        TextView tv = (TextView)rowView.findViewById(R.id.hashtag_textview);
+        ImageButton starButton = (ImageButton)rowView.findViewById(R.id.star_button);
+        starButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if ( _listener != null ) {
-                    _listener.tagTapped(tagText);
+                if ( _onStarTappedListener != null ) {
+                    _onStarTappedListener.onStarTapped(hashtag);
                 }
             }
         });
-    }
 
-    @Override
-    public int getItemCount() {
-        return _hashtags.size();
-    }
+        tv.setText(hashtag.getTag());
 
-    public static abstract class OnTagTappedListener {
-        public abstract void tagTapped(String tag);
-    }
-
-    public static class HashtagViewHolder extends RecyclerView.ViewHolder {
-        public TextView textView;
-
-        public HashtagViewHolder(View v) {
-            super(v);
-            textView = (TextView)v.findViewById(R.id.hashtag_textview);
-        }
+        return rowView;
     }
 }

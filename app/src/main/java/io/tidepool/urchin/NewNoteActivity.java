@@ -7,10 +7,11 @@ import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
@@ -21,6 +22,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -69,9 +71,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     private EditText _noteEditText;
     private TextView _dateTimeTextView;
-    private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
+
+    // Drawer stuff
+    private DrawerLayout _drawerLayout;
+    private ListView _drawerList;
 
     private User _currentUser;
 
@@ -89,9 +94,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         _noteEditText = (EditText)findViewById(R.id.note_edit_text);
         _dateTimeTextView = (TextView)findViewById(R.id.date_time);
-        _hashtagView = (RecyclerView)findViewById(R.id.hashtag_recyclerview);
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+        _drawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
+        _drawerList = (ListView)findViewById(R.id.left_drawer);
+        Button hashtagButton = (Button)findViewById(R.id.hashtag_button);
 
         _dropDownLayout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,6 +108,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         });
 
         _formatTextHandler = new Handler();
+
+        hashtagButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hashtagButtonClicked();
+            }
+        });
 
         // Show a context menu for the date / time bar
         View dateTimeLayout = findViewById(R.id.date_time_layout);
@@ -526,7 +540,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         MainActivity.getInstance().getAPIClient().deleteNote(_editingNote, new APIClient.DeleteNoteListener() {
             @Override
             public void noteDeleted(Exception error) {
-                if ( error == null ) {
+                if (error == null) {
                     Toast.makeText(NewNoteActivity.this, R.string.note_deleted, Toast.LENGTH_LONG).show();
                     finish();
                 } else {
@@ -573,8 +587,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     }
 
     private void setupHashtags() {
-        // TESTING
-
         // Get the tags from the database
         Realm realm = Realm.getInstance(this);
         RealmResults<Hashtag> allTags = realm.where(Hashtag.class).findAllSorted("tag");
@@ -629,15 +641,29 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             }
         }
 
-        _hashtagView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        _hashtagView.setAdapter(new HashtagAdapter(hashtagList, new HashtagAdapter.OnTagTappedListener() {
+        // Respond to star taps in the drawer
+        _drawerList.setAdapter(new HashtagAdapter(this, hashtagList, new HashtagAdapter.OnStarTappedListener() {
             @Override
-            public void tagTapped(String tag) {
-                addHashtag(tag);
+            public void onStarTapped(Hashtag hashtag) {
+                toggleHashtagStar(hashtag);
             }
         }));
 
+        // and item taps in the drawer
+        _drawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Hashtag h = (Hashtag)_drawerList.getAdapter().getItem(position);
+                addHashtag(h.getTag());
+                _drawerLayout.closeDrawer(GravityCompat.START);
+            }
+        });
+
         realm.close();
+    }
+
+    private void toggleHashtagStar(Hashtag hashtag) {
+        Log.d(LOG_TAG, "Toggle hashtag: " + hashtag);
     }
 
     private void addHashtag(String tag) {
@@ -656,6 +682,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         _noteEditText.getText().replace(Math.min(start, end), Math.max(start, end),
                 tag, 0, tag.length());
+    }
+
+    private void hashtagButtonClicked() {
+        // Toggle the drawer. It must be closed or we couldn't get the button tap
+        _drawerLayout.openDrawer(GravityCompat.START);
     }
 
     @Override
