@@ -1,5 +1,6 @@
 package io.tidepool.urchin;
 
+import android.Manifest;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
@@ -18,6 +19,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -59,11 +61,15 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
     private View mProgressView;
     private View mLoginFormView;
     private CheckBox mRememberMeCheckBox;
+    private boolean mCanReadContacts;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        mCanReadContacts = (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED);
 
         // See if there is a saved preference for the email address
         String email = getPreferences(Context.MODE_PRIVATE).getString(BUNDLE_REMEMBER_ME, "");
@@ -143,7 +149,9 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
     }
 
     private void populateAutoComplete() {
-        getLoaderManager().initLoader(0, null, this);
+        if ( mCanReadContacts ) {
+            getLoaderManager().initLoader(0, null, this);
+        }
     }
 
 
