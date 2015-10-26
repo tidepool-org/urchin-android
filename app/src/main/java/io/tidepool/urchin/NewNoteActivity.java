@@ -21,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.DatePicker;
@@ -91,6 +92,9 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new_note);
+
+        // This will keep the keyboard from popping up when we launch
+        this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 
         _noteEditText = (EditText)findViewById(R.id.note_edit_text);
         _dateTimeTextView = (TextView)findViewById(R.id.date_time);
@@ -185,13 +189,20 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         }
         realm.close();
 
+        boolean shouldOpenDrawer = true;
+
         // See if we were launched to create a new note, or to edit an existing one
         Bundle args = getIntent().getExtras();
         if ( args != null ) {
             String messageId = args.getString(ARG_EDIT_NOTE_ID);
             if (messageId != null) {
                 setEditing(messageId);
+                shouldOpenDrawer = false;
+                _noteEditText.requestFocus();
             }
+        }
+        if ( shouldOpenDrawer ) {
+            _drawerLayout.openDrawer(GravityCompat.START);
         }
     }
 
@@ -332,6 +343,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     @Override
     public void onBackPressed() {
+        // Close the hashtag drawer if it's open
+        if ( _drawerLayout.isDrawerOpen(GravityCompat.START) ) {
+            _drawerLayout.closeDrawer(GravityCompat.START);
+            return;
+        }
+
         // Let the back button dismiss the drop-down menu if present
         if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
             showDropDownMenu(false);
@@ -595,6 +612,10 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             uniqueTags.add(tag.getTag());
         }
 
+        // Add the default tags
+        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
+        uniqueTags.addAll(Arrays.asList(defaultTags));
+
         // Get the counts of each of the hashtags
         final Map<String, Long> tagCounts = new HashMap<>();
         for ( String tag : uniqueTags ) {
@@ -602,15 +623,24 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             // Log.d(LOG_TAG, "Tag: " + tag + " Count: " + tagCounts.get(tag));
         }
 
-        // Sort the tags by count
+        // Sort the tags by count (but stars first)
         List<String> sortedTags = new ArrayList<String>(uniqueTags);
         Collections.sort(sortedTags, new Comparator<String>() {
             @Override
             public int compare(String lhs, String rhs) {
+                boolean leftStarred = HashtagUtils.isHashtagStarred(NewNoteActivity.this, lhs);
+                boolean rightStarred = HashtagUtils.isHashtagStarred(NewNoteActivity.this, rhs);
+                if (leftStarred && !rightStarred) {
+                    return -1;
+                }
+                if (rightStarred && !leftStarred) {
+                    return 1;
+                }
+
                 Long l = tagCounts.get(lhs);
                 Long r = tagCounts.get(rhs);
                 // Sort by name if the counts are equal
-                if ( l.equals(r) ) {
+                if (l.equals(r)) {
                     return lhs.compareTo(rhs);
                 }
                 // Reverse sort here- highest counts come first
@@ -618,10 +648,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             }
         });
 
-        // Add the defaults to the end of the sorted tag list, just in case there aren't any
-        // defined yet
-        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
-        sortedTags.addAll(Arrays.asList(defaultTags));
 
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
@@ -656,6 +682,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 Hashtag h = (Hashtag)_drawerList.getAdapter().getItem(position);
                 addHashtag(h.getTag());
                 _drawerLayout.closeDrawer(GravityCompat.START);
+                _noteEditText.requestFocus();
             }
         });
 
@@ -664,6 +691,10 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     private void toggleHashtagStar(Hashtag hashtag) {
         Log.d(LOG_TAG, "Toggle hashtag: " + hashtag);
+        boolean isStarred = HashtagUtils.isHashtagStarred(this, hashtag.getTag());
+        HashtagUtils.setHashtagStar(this, hashtag.getTag(), !isStarred);
+
+        setupHashtags();
     }
 
     private void addHashtag(String tag) {

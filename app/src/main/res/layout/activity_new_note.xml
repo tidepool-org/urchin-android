@@ -72,7 +72,6 @@
             android:padding="8dp"
             >
 
-            <requestFocus/>
         </EditText>
 
         <Button

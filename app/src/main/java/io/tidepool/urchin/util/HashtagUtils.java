@@ -10,8 +10,10 @@ import android.text.style.StyleSpan;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.realm.Realm;
 import io.tidepool.urchin.R;
 import io.tidepool.urchin.data.Hashtag;
+import io.tidepool.urchin.data.StarredTag;
 
 /**
  * Created by Brian King on 8/31/15.
@@ -69,5 +71,41 @@ public class HashtagUtils {
                 text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
+    }
+
+    /**
+     * Returns true if the hashtag with the given name is starred by the user
+     * @param context Context to get the realm database from
+     * @param hashtagName Name of the hashtag to check
+     * @return true if the tag is starred, false otherwise
+     */
+    public static boolean isHashtagStarred(Context context, String hashtagName) {
+        Realm realm = Realm.getInstance(context);
+        boolean result = realm.where(StarredTag.class).equalTo("tagName", hashtagName).count() > 0;
+        realm.close();
+        return result;
+    }
+
+    /**
+     * Sets or clears a "star" on a hashtag name.
+     * @param context Context to get the realm database from
+     * @param hashtagName Name of the hashtag to star or un-star
+     * @param starred True to star, false to un-star
+     */
+    public static void setHashtagStar(Context context, String hashtagName, boolean starred) {
+        Realm realm = Realm.getInstance(context);
+        if ( starred ) {
+            // We are setting the star.
+            realm.beginTransaction();
+            StarredTag tag = realm.createObject(StarredTag.class);
+            tag.setTagName(hashtagName);
+            realm.commitTransaction();
+        } else {
+            // We are removing the star
+            realm.beginTransaction();
+            realm.where(StarredTag.class).equalTo("tagName", hashtagName).findAll().clear();
+            realm.commitTransaction();
+        }
+        realm.close();
     }
 }
