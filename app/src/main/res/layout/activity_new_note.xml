@@ -54,7 +54,7 @@
 
         <!-- Edit area -->
 
-        <EditText
+        <MultiAutoCompleteTextView
             android:id="@+id/note_edit_text"
             style="@android:style/TextAppearance.Large"
 
@@ -72,7 +72,7 @@
             android:padding="8dp"
             >
 
-        </EditText>
+        </MultiAutoCompleteTextView>
 
         <Button
             android:id="@+id/hashtag_button"

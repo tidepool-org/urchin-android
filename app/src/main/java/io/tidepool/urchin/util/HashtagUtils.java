@@ -56,8 +56,8 @@ public class HashtagUtils {
                     startSpan = i;
                 }
             } else {
-                // We're looking for whitespace
-                if ( Character.isWhitespace(c) ) {
+                // We're looking for something that's not a letter, digit or underscore.
+                if ( !(Character.isLetter(c) || Character.isDigit(c) || c == '_') ) {
                     // Found it. Add the span.
                     text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     if ( bold ) {

@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Handler;
 import android.support.v4.content.ContextCompat;
@@ -14,6 +15,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -22,12 +25,15 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.MultiAutoCompleteTextView;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -61,6 +67,7 @@ import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.MiscUtils;
+import io.tidepool.urchin.util.StringTokenizer;
 
 public class NewNoteActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "NewNote";
@@ -71,7 +78,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private static final int MAX_TAGS = 50;         // Most tags we will show in the scrolling list
     private static final int FORMAT_TIMEOUT = 1000; // Delay we wait to see if the user has stopped typing
 
-    private EditText _noteEditText;
+    private MultiAutoCompleteTextView _noteEditText;
     private TextView _dateTimeTextView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
@@ -98,7 +105,22 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // This will keep the keyboard from popping up when we launch
         this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
-        _noteEditText = (EditText)findViewById(R.id.note_edit_text);
+        _noteEditText = (MultiAutoCompleteTextView)findViewById(R.id.note_edit_text);
+        _noteEditText.setTokenizer(new StringTokenizer());
+        _noteEditText.setThreshold(1);
+        _noteEditText.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                _formatTextHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        formatText();
+                    }
+                }, 100);
+            }
+        });
+
+
         _dateTimeTextView = (TextView)findViewById(R.id.date_time);
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
@@ -141,6 +163,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // Populate the hashtags
         setupHashtags();
 
+
         // Make the hashtags look good in the note
         // TODO: Better hashtag formatting in edit text.
         // This seems kind of clunky having the delay. Without the delay it's almost unusable,
@@ -158,7 +181,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
             @Override
             public void afterTextChanged(Editable s) {
-                if ( !_updatingText ) {
+                if ( !_updatingText && !_noteEditText.isPopupShowing() ) {
                     // Format the text once the user has stopped typing
                     _formatTextHandler.removeCallbacksAndMessages(null);
                     _formatTextHandler.postDelayed(new Runnable() {
@@ -246,21 +269,23 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     }
 
     private void formatText() {
-        long startTime = System.nanoTime();
+        if ( !_noteEditText.isPopupShowing() ) {
+            long startTime = System.nanoTime();
 
-        _updatingText = true;
-        int selectionStart = _noteEditText.getSelectionStart();
-        int selectionEnd = _noteEditText.getSelectionEnd();
-        String text = _noteEditText.getText().toString();
-        SpannableString ss = new SpannableString(text);
-        Log.d(LOG_TAG, "Text: " + text);
-        HashtagUtils.formatHashtags(ss, ContextCompat.getColor(this, R.color.hashtag_text), true);
-        _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
-        _noteEditText.setSelection(selectionStart, selectionEnd);
-        _updatingText = false;
+            _updatingText = true;
+            int selectionStart = _noteEditText.getSelectionStart();
+            int selectionEnd = _noteEditText.getSelectionEnd();
+            String text = _noteEditText.getText().toString();
+            SpannableString ss = new SpannableString(text);
+            Log.d(LOG_TAG, "Text: " + text);
+            HashtagUtils.formatHashtags(ss, ContextCompat.getColor(this, R.color.hashtag_text), true);
+            _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
+            _noteEditText.setSelection(selectionStart, selectionEnd);
+            _updatingText = false;
 
-        long totalTime = System.nanoTime() - startTime;
-        Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
+            long totalTime = System.nanoTime() - startTime;
+            Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
+        }
     }
 
     private void postOrUpdate() {
@@ -640,7 +665,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 }
 
                 // If rhTag is not null, we have both tags. Compare by timestamp, newest first.
-                if ( rhTag != null ) {
+                if (rhTag != null) {
                     return -lhTag.getTimestamp().compareTo(rhTag.getTimestamp());
                 }
 
@@ -655,6 +680,9 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             }
         });
 
+
+        //_noteEditText.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, sortedTags));
+        _noteEditText.setAdapter(new ArrayAdapter<>(this, R.layout.list_item_hashtag, R.id.hashtag_textview, sortedTags));
 
         // Create the list of hashtags for the adapter in the same order as sortedTags
         _hashtagList = new ArrayList<>();
@@ -729,11 +757,36 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         _noteEditText.getText().replace(Math.min(start, end), Math.max(start, end),
                 tag, 0, tag.length());
+        formatText();
     }
 
     private void hashtagButtonClicked() {
-        // Toggle the drawer. It must be closed or we couldn't get the button tap
-        _drawerLayout.openDrawer(GravityCompat.START);
+        // Insert "#" and show the dropdown.
+        Editable text = _noteEditText.getText();
+        String tagInsertion = "#";
+
+        int selStart = _noteEditText.getSelectionStart();
+        if ( selStart > 0 ) {
+            // Check the previous character to see if we need to insert a space.
+            Character c = text.charAt(selStart - 1);
+            if ( !Character.isWhitespace(c) ) {
+                tagInsertion = " #";
+            }
+        }
+        
+        text.insert(selStart, tagInsertion);
+
+        // Bring up the keyboard (forcibly!)
+        _noteEditText.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(_noteEditText, InputMethodManager.SHOW_IMPLICIT);
+
+        _formatTextHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                _noteEditText.showDropDown();
+            }
+        }, 100);
     }
 
     @Override
