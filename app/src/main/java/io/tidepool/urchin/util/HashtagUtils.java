@@ -2,15 +2,18 @@ package io.tidepool.urchin.util;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.support.annotation.Nullable;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import io.realm.Realm;
+import io.realm.RealmResults;
 import io.tidepool.urchin.R;
 import io.tidepool.urchin.data.Hashtag;
 import io.tidepool.urchin.data.StarredTag;
@@ -77,13 +80,19 @@ public class HashtagUtils {
      * Returns true if the hashtag with the given name is starred by the user
      * @param context Context to get the realm database from
      * @param hashtagName Name of the hashtag to check
-     * @return true if the tag is starred, false otherwise
+     * @return the StarredTag object if the tag is starred, null otherwise
      */
-    public static boolean isHashtagStarred(Context context, String hashtagName) {
+    @Nullable
+    public static StarredTag getStarredTag(Context context, String hashtagName) {
         Realm realm = Realm.getInstance(context);
-        boolean result = realm.where(StarredTag.class).equalTo("tagName", hashtagName).count() > 0;
+        RealmResults<StarredTag> results = realm.where(StarredTag.class).equalTo("tagName", hashtagName).findAll();
+        StarredTag result = results.size() == 0 ? null : results.first();
         realm.close();
         return result;
+    }
+
+    public static boolean isHashtagStarred(Context context, String hashtagName) {
+        return (getStarredTag(context, hashtagName) != null);
     }
 
     /**
@@ -99,6 +108,7 @@ public class HashtagUtils {
             realm.beginTransaction();
             StarredTag tag = realm.createObject(StarredTag.class);
             tag.setTagName(hashtagName);
+            tag.setTimestamp(new Date());
             realm.commitTransaction();
         } else {
             // We are removing the star
