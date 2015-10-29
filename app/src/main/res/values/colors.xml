@@ -29,6 +29,10 @@
 
     <color name="add_button_fg">#FFFFFF</color>
     <color name="add_button_bg">@color/app_theme_primary</color>
+
+    <color name="hashtag_button_fg">#000000</color>
+    <color name="hashtag_button_bg">#CCCCCCCC</color>
+
     <color name="notes_background">@color/grey_100</color>
     <color name="card_bg_odd">#DDDDDD</color>
     <color name="card_bg_even">#FFFFFF</color>

@@ -76,18 +76,19 @@
 
         <Button
             android:id="@+id/hashtag_button"
+            android:gravity="center_horizontal|center_vertical"
             android:layout_width="@dimen/hashtag_button_diameter"
             android:layout_height="@dimen/hashtag_button_diameter"
             android:layout_alignParentStart="true"
             android:layout_alignParentBottom="true"
             android:layout_marginStart="@dimen/hashtag_button_start_offset"
             android:layout_marginBottom="@dimen/hashtag_button_start_offset"
-            android:background="@drawable/add_button"
+            android:background="@drawable/hashtag_button"
             android:elevation="@dimen/add_button_elevation"
             android:text="#"
             android:textSize="28sp"
             android:textStyle="bold"
-            android:textColor="@color/add_button_fg"
+            android:textColor="@color/hashtag_button_fg"
             />
 
     </RelativeLayout>
