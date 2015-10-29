@@ -1,64 +1,128 @@
 package io.tidepool.urchin.ui;
 
-import android.support.v7.widget.RecyclerView;
+import android.content.Context;
+import android.graphics.PorterDuff;
+import android.support.v4.content.ContextCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Filter;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import io.tidepool.urchin.R;
 import io.tidepool.urchin.data.Hashtag;
+import io.tidepool.urchin.util.HashtagUtils;
 
 /**
  * Created by Brian King on 9/1/15.
  */
-public class HashtagAdapter extends RecyclerView.Adapter<HashtagAdapter.HashtagViewHolder> {
+public class HashtagAdapter extends ArrayAdapter<Hashtag> {
+    private final Context _context;
+    private OnStarTappedListener _onStarTappedListener;
     private List<Hashtag> _hashtags;
-    private OnTagTappedListener _listener;
 
-    public HashtagAdapter(List<Hashtag> hashtags, OnTagTappedListener listener) {
+    public HashtagAdapter(Context context, List<Hashtag> hashtags, OnStarTappedListener starTappedListener) {
+        super(context, -1, hashtags);
         _hashtags = hashtags;
-        _listener = listener;
+        _context = context;
+        _onStarTappedListener = starTappedListener;
+    }
+
+    public static abstract class OnStarTappedListener {
+        public abstract void onStarTapped(Hashtag hashtag);
     }
 
     @Override
-    public HashtagViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
-        View v = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.cardview_hashtag, viewGroup, false);
-        return new HashtagViewHolder(v);
-    }
+    public View getView(int position, View convertView, ViewGroup parent) {
+        final Hashtag hashtag = getItem(position);
 
-    @Override
-    public void onBindViewHolder(HashtagViewHolder holder, int position) {
-        Hashtag tag = _hashtags.get(position);
-        final String tagText = tag.getTag();
-        holder.textView.setText(tagText);
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
+        LayoutInflater inflater = (LayoutInflater)_context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View rowView = convertView != null ? convertView : inflater.inflate(R.layout.list_item_hashtag, parent, false);
+        TextView tv = (TextView)rowView.findViewById(R.id.hashtag_textview);
+        ImageButton starButton = (ImageButton)rowView.findViewById(R.id.star_button);
+        starButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if ( _listener != null ) {
-                    _listener.tagTapped(tagText);
+                if (_onStarTappedListener != null) {
+                    _onStarTappedListener.onStarTapped(hashtag);
                 }
             }
         });
-    }
 
-    @Override
-    public int getItemCount() {
-        return _hashtags.size();
-    }
+        // Set the hashtag label text
+        tv.setText(hashtag.getTag());
 
-    public static abstract class OnTagTappedListener {
-        public abstract void tagTapped(String tag);
-    }
+        // Only show the star if somebody is listening
+        if ( _onStarTappedListener != null ) {
+            starButton.setVisibility(View.VISIBLE);
+            // Set the appropriate star icon and color
+            boolean isStarred = HashtagUtils.isHashtagStarred(_context, hashtag.getTag());
+            int starId = isStarred ? R.drawable.ic_star_white_24dp : R.drawable.ic_star_border_white_24dp;
+            int colorId = isStarred ? R.color.starred : R.color.unstarred;
 
-    public static class HashtagViewHolder extends RecyclerView.ViewHolder {
-        public TextView textView;
-
-        public HashtagViewHolder(View v) {
-            super(v);
-            textView = (TextView)v.findViewById(R.id.hashtag_textview);
+            starButton.setImageDrawable(ContextCompat.getDrawable(_context, starId));
+            starButton.setColorFilter(ContextCompat.getColor(_context, colorId), PorterDuff.Mode.SRC_ATOP);
+        } else {
+            starButton.setVisibility(View.GONE);
         }
+        return rowView;
+    }
+
+    public class HashtagFilter extends Filter {
+
+        @Override
+        protected FilterResults performFiltering(CharSequence constraint) {
+            FilterResults results = new FilterResults();
+            if ( constraint == null || constraint.length() == 0 ) {
+                // Return everything
+                results.values = _hashtags;
+                results.count = _hashtags.size();
+            } else {
+                // Filter the list
+                List<Hashtag> filteredTags = new ArrayList<>();
+                for ( Hashtag tag : _hashtags ) {
+                    if ( tag.getTag().toUpperCase().startsWith(constraint.toString().toUpperCase())) {
+                        filteredTags.add(tag);
+                    }
+                }
+                results.values = filteredTags;
+                results.count = filteredTags.size();
+            }
+
+            return results;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")  // Cast of results.values: We know what it is.
+        protected void publishResults(CharSequence constraint, FilterResults results) {
+            if ( results.count == 0 ) {
+                notifyDataSetInvalidated();
+            } else {
+                _hashtags = (List<Hashtag>)results.values;
+            }
+        }
+
+        @Override
+        public CharSequence convertResultToString(Object resultValue) {
+            Hashtag tag = (Hashtag)resultValue;
+            if ( tag != null ) {
+                return tag.getTag();
+            }
+            return null;
+        }
+    }
+
+    private Filter _hashtagFilter;
+    @Override
+    public Filter getFilter() {
+        if ( _hashtagFilter == null ) {
+            _hashtagFilter = new HashtagFilter();
+        }
+        return _hashtagFilter;
     }
 }
