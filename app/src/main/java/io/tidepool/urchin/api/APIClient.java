@@ -101,7 +101,7 @@ public class APIClient {
     static {
         __servers = new HashMap<>();
         try {
-            __servers.put(PRODUCTION, new URL("https://api.tidepool.io"));
+            __servers.put(PRODUCTION, new URL("https://api.tidepool.org"));
             __servers.put(DEVELOPMENT, new URL("https://devel-api.tidepool.io"));
             __servers.put(STAGING, new URL("https://staging-api.tidepool.io"));
 
