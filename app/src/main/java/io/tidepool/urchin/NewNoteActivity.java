@@ -240,6 +240,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private void postOrUpdate() {
         Log.d(LOG_TAG, "POST");
 
+        if ( !wasEdited() ) {
+            // Treat like a back button
+            onBackPressed();
+            return;
+        }
+
         // Put up a wait dialog while we post the message
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setTitle(_editingNote != null ? R.string.updating_note : R.string.posting_note);
