@@ -19,7 +19,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -543,6 +542,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _userFilter = null;
         _dropDownListView.setAdapter(null);
         _recyclerView.setAdapter(null);
+
+        // Clear out our saved preferences for the user
+        clearUserPreferences();
+
         _apiClient.signOut(new APIClient.SignOutListener() {
             @Override
             public void signedOut(int responseCode, Exception error) {
@@ -563,7 +566,19 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         return getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_SERVER, DEFAULT_SERVER);
     }
 
+    /**
+     * Removes preferences related to a specific user. Will not remove saved preferences for
+     * the application, such as the selected server to use.
+     */
+    void clearUserPreferences() {
+        getPreferences(Context.MODE_PRIVATE).edit().remove(PREFS_KEY_USERID);
+    }
+
     public void setSelectedServer(String server) {
+        // Clear out our user preferences - everything is different on a different server
+        clearUserPreferences();
+
+        // Save the selected server
         getPreferences(Context.MODE_PRIVATE).edit().putString(PREFS_KEY_SERVER, server).apply();
         _apiClient = new APIClient(this, server);
 

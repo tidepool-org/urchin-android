@@ -5,18 +5,14 @@ import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
 import android.app.TimePickerDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Handler;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.GravityCompat;
-import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -24,16 +20,11 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.WindowManager;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.MultiAutoCompleteTextView;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -61,13 +52,11 @@ import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.CurrentUser;
 import io.tidepool.urchin.data.Hashtag;
 import io.tidepool.urchin.data.Note;
-import io.tidepool.urchin.data.StarredTag;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.ui.HashtagAdapter;
 import io.tidepool.urchin.ui.UserFilterAdapter;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.MiscUtils;
-import io.tidepool.urchin.util.StringTokenizer;
 
 public class NewNoteActivity extends AppCompatActivity implements RealmChangeListener {
     private static final String LOG_TAG = "NewNote";
@@ -78,15 +67,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private static final int MAX_TAGS = 50;         // Most tags we will show in the scrolling list
     private static final int FORMAT_TIMEOUT = 1000; // Delay we wait to see if the user has stopped typing
 
-    private MultiAutoCompleteTextView _noteEditText;
+    private EditText _noteEditText;
     private TextView _dateTimeTextView;
+    private RecyclerView _hashtagView;
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
-
-    // Drawer stuff
-    private DrawerLayout _drawerLayout;
-    private ListView _drawerList;
-    private List<Hashtag> _hashtagList;
 
     private User _currentUser;
 
@@ -102,31 +87,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_new_note);
 
-        // This will keep the keyboard from popping up when we launch
-        this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-
-        _noteEditText = (MultiAutoCompleteTextView)findViewById(R.id.note_edit_text);
-        _noteEditText.setTokenizer(new StringTokenizer());
-        _noteEditText.setThreshold(1);
-        _noteEditText.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                _formatTextHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        formatText();
-                    }
-                }, 100);
-            }
-        });
-
-
+        _noteEditText = (EditText)findViewById(R.id.note_edit_text);
         _dateTimeTextView = (TextView)findViewById(R.id.date_time);
+        _hashtagView = (RecyclerView)findViewById(R.id.hashtag_recyclerview);
         _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
         _dropDownListView = (ListView)findViewById(R.id.listview_filter);
-        _drawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
-        _drawerList = (ListView)findViewById(R.id.left_drawer);
-        Button hashtagButton = (Button)findViewById(R.id.hashtag_button);
 
         _dropDownLayout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -136,13 +101,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         });
 
         _formatTextHandler = new Handler();
-
-        hashtagButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                hashtagButtonClicked();
-            }
-        });
 
         // Show a context menu for the date / time bar
         View dateTimeLayout = findViewById(R.id.date_time_layout);
@@ -163,13 +121,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // Populate the hashtags
         setupHashtags();
 
-
         // Make the hashtags look good in the note
         // TODO: Better hashtag formatting in edit text.
         // This seems kind of clunky having the delay. Without the delay it's almost unusable,
         // though, as formatting the tags seems to take a long time. There's probably a more efficient
         // way to make this work...
         _noteEditText.addTextChangedListener(new TextWatcher() {
+            boolean _isChanging;
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
@@ -181,7 +139,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
             @Override
             public void afterTextChanged(Editable s) {
-                if ( !_updatingText && !_noteEditText.isPopupShowing() ) {
+                if ( !_updatingText ) {
                     // Format the text once the user has stopped typing
                     _formatTextHandler.removeCallbacksAndMessages(null);
                     _formatTextHandler.postDelayed(new Runnable() {
@@ -213,20 +171,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         }
         realm.close();
 
-        boolean shouldOpenDrawer = true;
-
         // See if we were launched to create a new note, or to edit an existing one
         Bundle args = getIntent().getExtras();
         if ( args != null ) {
             String messageId = args.getString(ARG_EDIT_NOTE_ID);
             if (messageId != null) {
                 setEditing(messageId);
-                shouldOpenDrawer = false;
-                _noteEditText.requestFocus();
             }
-        }
-        if ( shouldOpenDrawer ) {
-            _drawerLayout.openDrawer(GravityCompat.START);
         }
     }
 
@@ -245,7 +196,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         _noteTime = note.getTimestamp();
         setDateTimeText(_noteTime);
         SpannableString ss = new SpannableString(note.getMessagetext());
-        HashtagUtils.formatHashtags(ss, ContextCompat.getColor(this, R.color.hashtag_text), true);
+        HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
         _noteEditText.setText(ss);
         _editingNote = note;
     }
@@ -269,27 +220,31 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     }
 
     private void formatText() {
-        if ( !_noteEditText.isPopupShowing() ) {
-            long startTime = System.nanoTime();
+        long startTime = System.nanoTime();
 
-            _updatingText = true;
-            int selectionStart = _noteEditText.getSelectionStart();
-            int selectionEnd = _noteEditText.getSelectionEnd();
-            String text = _noteEditText.getText().toString();
-            SpannableString ss = new SpannableString(text);
-            Log.d(LOG_TAG, "Text: " + text);
-            HashtagUtils.formatHashtags(ss, ContextCompat.getColor(this, R.color.hashtag_text), true);
-            _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
-            _noteEditText.setSelection(selectionStart, selectionEnd);
-            _updatingText = false;
+        _updatingText = true;
+        int selectionStart = _noteEditText.getSelectionStart();
+        int selectionEnd = _noteEditText.getSelectionEnd();
+        String text = _noteEditText.getText().toString();
+        SpannableString ss = new SpannableString(text);
+        Log.d(LOG_TAG, "Text: " + text);
+        HashtagUtils.formatHashtags(ss, getResources().getColor(R.color.hashtag_text), true);
+        _noteEditText.setText(ss, EditText.BufferType.SPANNABLE);
+        _noteEditText.setSelection(selectionStart, selectionEnd);
+        _updatingText = false;
 
-            long totalTime = System.nanoTime() - startTime;
-            Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
-        }
+        long totalTime = System.nanoTime() - startTime;
+        Log.d(LOG_TAG, "formatText took " + totalTime / 1000000L + "ms");
     }
 
     private void postOrUpdate() {
         Log.d(LOG_TAG, "POST");
+
+        if ( !wasEdited() ) {
+            // Treat like a back button
+            onBackPressed();
+            return;
+        }
 
         // Put up a wait dialog while we post the message
         final ProgressDialog pd = new ProgressDialog(this);
@@ -369,12 +324,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     @Override
     public void onBackPressed() {
-        // Close the hashtag drawer if it's open
-        if ( _drawerLayout.isDrawerOpen(GravityCompat.START) ) {
-            _drawerLayout.closeDrawer(GravityCompat.START);
-            return;
-        }
-
         // Let the back button dismiss the drop-down menu if present
         if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
             showDropDownMenu(false);
@@ -541,7 +490,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                         }
                     })
                     .setNegativeButton(android.R.string.no, null)
-                    .setIcon(ContextCompat.getDrawable(this, R.mipmap.ic_launcher))
+                    .setIcon(getResources().getDrawable(R.mipmap.ic_launcher))
                     .show();
             return true;
         }
@@ -583,7 +532,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         MainActivity.getInstance().getAPIClient().deleteNote(_editingNote, new APIClient.DeleteNoteListener() {
             @Override
             public void noteDeleted(Exception error) {
-                if (error == null) {
+                if ( error == null ) {
                     Toast.makeText(NewNoteActivity.this, R.string.note_deleted, Toast.LENGTH_LONG).show();
                     finish();
                 } else {
@@ -630,6 +579,8 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     }
 
     private void setupHashtags() {
+        // TESTING
+
         // Get the tags from the database
         Realm realm = Realm.getInstance(this);
         RealmResults<Hashtag> allTags = realm.where(Hashtag.class).findAllSorted("tag");
@@ -638,10 +589,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             uniqueTags.add(tag.getTag());
         }
 
-        // Add the default tags
-        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
-        uniqueTags.addAll(Arrays.asList(defaultTags));
-
         // Get the counts of each of the hashtags
         final Map<String, Long> tagCounts = new HashMap<>();
         for ( String tag : uniqueTags ) {
@@ -649,30 +596,15 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             // Log.d(LOG_TAG, "Tag: " + tag + " Count: " + tagCounts.get(tag));
         }
 
-        // Sort the tags by count (but stars first)
-        List<String> sortedTags = new ArrayList<>(uniqueTags);
+        // Sort the tags by count
+        List<String> sortedTags = new ArrayList<String>(uniqueTags);
         Collections.sort(sortedTags, new Comparator<String>() {
             @Override
             public int compare(String lhs, String rhs) {
-                StarredTag lhTag = HashtagUtils.getStarredTag(NewNoteActivity.this, lhs);
-                StarredTag rhTag = HashtagUtils.getStarredTag(NewNoteActivity.this, rhs);
-
-                if (lhTag != null && rhTag == null) {
-                    return -1;
-                }
-                if (rhTag != null && lhTag == null) {
-                    return 1;
-                }
-
-                // If rhTag is not null, we have both tags. Compare by timestamp, newest first.
-                if (rhTag != null) {
-                    return -lhTag.getTimestamp().compareTo(rhTag.getTimestamp());
-                }
-
                 Long l = tagCounts.get(lhs);
                 Long r = tagCounts.get(rhs);
                 // Sort by name if the counts are equal
-                if (l.equals(r)) {
+                if ( l.equals(r) ) {
                     return lhs.compareTo(rhs);
                 }
                 // Reverse sort here- highest counts come first
@@ -680,12 +612,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             }
         });
 
-
-        //_noteEditText.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, sortedTags));
-        _noteEditText.setAdapter(new ArrayAdapter<>(this, R.layout.list_item_hashtag, R.id.hashtag_textview, sortedTags));
+        // Add the defaults to the end of the sorted tag list, just in case there aren't any
+        // defined yet
+        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
+        sortedTags.addAll(Arrays.asList(defaultTags));
 
         // Create the list of hashtags for the adapter in the same order as sortedTags
-        _hashtagList = new ArrayList<>();
+        List<Hashtag> hashtagList = new ArrayList<>();
         for ( String tagName : sortedTags ) {
             RealmResults<Hashtag> results = realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
             Hashtag tag = null;
@@ -696,49 +629,21 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 // Probably one of our default tags- they're not in the database.
                 tag = new Hashtag(tagName);
             }
-            _hashtagList.add(tag);
-            if ( _hashtagList.size() >= MAX_TAGS ) {
+            hashtagList.add(tag);
+            if ( hashtagList.size() >= MAX_TAGS ) {
                 break;
             }
         }
 
-        // Respond to star taps in the drawer
-        _drawerList.setAdapter(new HashtagAdapter(this, _hashtagList, new HashtagAdapter.OnStarTappedListener() {
+        _hashtagView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        _hashtagView.setAdapter(new HashtagAdapter(hashtagList, new HashtagAdapter.OnTagTappedListener() {
             @Override
-            public void onStarTapped(Hashtag hashtag) {
-                toggleHashtagStar(hashtag);
+            public void tagTapped(String tag) {
+                addHashtag(tag);
             }
         }));
 
-        // and item taps in the drawer
-        _drawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Hashtag h = (Hashtag)_drawerList.getAdapter().getItem(position);
-                addHashtag(h.getTag());
-                _drawerLayout.closeDrawer(GravityCompat.START);
-                _noteEditText.requestFocus();
-            }
-        });
-
         realm.close();
-    }
-
-    private void toggleHashtagStar(Hashtag hashtag) {
-        Log.d(LOG_TAG, "Toggle hashtag: " + hashtag);
-        boolean isStarred = HashtagUtils.isHashtagStarred(this, hashtag.getTag());
-        HashtagUtils.setHashtagStar(this, hashtag.getTag(), !isStarred);
-
-        if ( !isStarred ) {
-            // Move this hashtag to the start of the list
-            _hashtagList.remove(hashtag);
-            _hashtagList.add(0, hashtag);
-            ((HashtagAdapter)_drawerList.getAdapter()).notifyDataSetChanged();
-            _drawerList.scrollTo(0, 0);
-        } else {
-            // We will need to re-sort the hashtags
-            setupHashtags();
-        }
     }
 
     private void addHashtag(String tag) {
@@ -757,36 +662,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         _noteEditText.getText().replace(Math.min(start, end), Math.max(start, end),
                 tag, 0, tag.length());
-        formatText();
-    }
-
-    private void hashtagButtonClicked() {
-        // Insert "#" and show the dropdown.
-        Editable text = _noteEditText.getText();
-        String tagInsertion = "#";
-
-        int selStart = _noteEditText.getSelectionStart();
-        if ( selStart > 0 ) {
-            // Check the previous character to see if we need to insert a space.
-            Character c = text.charAt(selStart - 1);
-            if ( !Character.isWhitespace(c) ) {
-                tagInsertion = " #";
-            }
-        }
-        
-        text.insert(selStart, tagInsertion);
-
-        // Bring up the keyboard (forcibly!)
-        _noteEditText.requestFocus();
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(_noteEditText, InputMethodManager.SHOW_IMPLICIT);
-
-        _formatTextHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                _noteEditText.showDropDown();
-            }
-        }, 100);
     }
 
     @Override

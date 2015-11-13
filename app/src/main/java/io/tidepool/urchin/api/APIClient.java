@@ -58,7 +58,6 @@ import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.Session;
 import io.tidepool.urchin.data.SharedUserId;
-import io.tidepool.urchin.data.StarredTag;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.MiscUtils;
@@ -102,7 +101,7 @@ public class APIClient {
     static {
         __servers = new HashMap<>();
         try {
-            __servers.put(PRODUCTION, new URL("https://api.tidepool.io"));
+            __servers.put(PRODUCTION, new URL("https://api.tidepool.org"));
             __servers.put(DEVELOPMENT, new URL("https://devel-api.tidepool.io"));
             __servers.put(STAGING, new URL("https://staging-api.tidepool.io"));
 
@@ -602,7 +601,6 @@ public class APIClient {
         realm.where(Session.class).findAll().clear();
         realm.where(SharedUserId.class).findAll().clear();
         realm.where(User.class).findAll().clear();
-        realm.where(StarredTag.class).findAll().clear();
         realm.commitTransaction();
         realm.close();
     }
