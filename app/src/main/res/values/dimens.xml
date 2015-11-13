@@ -6,8 +6,6 @@
     <dimen name="add_button_diameter">60dp</dimen>
     <dimen name="add_button_margin">15dp</dimen>
     <dimen name="add_button_elevation">4dp</dimen>
-    <dimen name="hashtag_button_start_offset">4dp</dimen>
-    <dimen name="hashtag_button_diameter">48dp</dimen>
     <dimen name="hashtag_height">56dp</dimen>
     <dimen name="post_button_padding">8dp</dimen>
     <dimen name="hashtag_radius">20sp</dimen>

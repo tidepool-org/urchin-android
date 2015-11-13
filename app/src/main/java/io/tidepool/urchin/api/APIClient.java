@@ -58,7 +58,6 @@ import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.EmailAddress;
 import io.tidepool.urchin.data.Session;
 import io.tidepool.urchin.data.SharedUserId;
-import io.tidepool.urchin.data.StarredTag;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.MiscUtils;
@@ -602,7 +601,6 @@ public class APIClient {
         realm.where(Session.class).findAll().clear();
         realm.where(SharedUserId.class).findAll().clear();
         realm.where(User.class).findAll().clear();
-        realm.where(StarredTag.class).findAll().clear();
         realm.commitTransaction();
         realm.close();
     }
