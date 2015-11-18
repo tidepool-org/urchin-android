@@ -74,10 +74,10 @@ public class APIClient {
     private static final String LOG_TAG = "APIClient";
 
     // Date format for most things,
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSZ";
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSZZZZZ";
 
     // Date format for messages
-    public static final String MESSAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
+    public static final String MESSAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZZZZZ";
 
     // Header label for the session token
     private static final String HEADER_SESSION_ID = "x-tidepool-session-token";
