@@ -437,6 +437,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             Realm realm = Realm.getInstance(this);
             List<SharedUserId> userIds = realm.where(SharedUserId.class).findAll();
 
+            if ( _lastFetchDate == null ) {
+                _lastFetchDate = new Date();
+            }
+
             final Date to = _lastFetchDate;
             Calendar c = Calendar.getInstance();
             c.setTime(to);
