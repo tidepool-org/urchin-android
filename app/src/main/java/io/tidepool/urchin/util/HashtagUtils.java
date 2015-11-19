@@ -28,7 +28,8 @@ public class HashtagUtils {
         List<Hashtag> tags = new ArrayList<>();
         String[] words = message.split("\\s+");
         for ( String word : words ) {
-            if ( word.startsWith("#") ) {
+            // Tag words that start with a # and have >1 character
+            if ( word.startsWith("#") && word.trim().length() > 1 ) {
                 tags.add(new Hashtag(word));
             }
         }
