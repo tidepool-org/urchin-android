@@ -589,6 +589,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             uniqueTags.add(tag.getTag());
         }
 
+        // Add the defaults to unique tag list, just in case there aren't any tags
+        // defined yet.
+        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
+        uniqueTags.addAll(Arrays.asList(defaultTags));
+
         // Get the counts of each of the hashtags
         final Map<String, Long> tagCounts = new HashMap<>();
         for ( String tag : uniqueTags ) {
@@ -604,18 +609,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 Long l = tagCounts.get(lhs);
                 Long r = tagCounts.get(rhs);
                 // Sort by name if the counts are equal
-                if ( l.equals(r) ) {
+                if (l.equals(r)) {
                     return lhs.compareTo(rhs);
                 }
                 // Reverse sort here- highest counts come first
                 return r.compareTo(l);
             }
         });
-
-        // Add the defaults to the end of the sorted tag list, just in case there aren't any
-        // defined yet
-        String[] defaultTags = getResources().getStringArray(R.array.default_hashtags);
-        sortedTags.addAll(Arrays.asList(defaultTags));
 
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
