@@ -213,7 +213,13 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
                 public void signInComplete(User user, Exception exception) {
                     if ( exception != null ) {
                         showProgress(false);
-                        Toast.makeText(LoginActivity.this, exception.toString(), Toast.LENGTH_LONG).show();
+                        String message;
+                        if ( exception.getClass().equals(com.android.volley.AuthFailureError.class) ) {
+                            message = getString(R.string.bad_login);
+                        } else {
+                            message = getString(R.string.error_unknown);
+                        }
+                        Toast.makeText(LoginActivity.this, message, Toast.LENGTH_LONG).show();
                         mPasswordView.selectAll();
                         mPasswordView.requestFocus();
                     } else {

@@ -39,6 +39,8 @@
     <string name="posting_note">Posting Note</string>
     <string name="posting_note_message">Posting your note...</string>
     <string name="updating_note">Updating your note...</string>
+    <string name="bad_login">Wrong username or password.</string>
+    <string name="error_unknown">An unknown error occurred. We are working hard to resolve this issue.</string>
 
     <!-- Default hashtags -->
     <string-array name="default_hashtags">
