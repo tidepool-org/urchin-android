@@ -2,7 +2,7 @@ package io.tidepool.urchin.api;
 
 import android.content.Context;
 import android.util.Base64;
-import android.util.Log;
+import io.tidepool.urchin.util.Log;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Cache;
