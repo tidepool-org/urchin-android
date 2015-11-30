@@ -14,7 +14,7 @@ import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
-import android.util.Log;
+import io.tidepool.urchin.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuInflater;
