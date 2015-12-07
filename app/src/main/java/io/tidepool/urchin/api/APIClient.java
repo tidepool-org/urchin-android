@@ -376,7 +376,7 @@ public class APIClient {
 
         String url;
         try {
-            url = new URL(getBaseURL(), "/auth/login").toString();
+            url = new URL(getBaseURL(), "/auth/logout").toString();
         } catch (MalformedURLException e) {
             listener.signedOut(0, e);
             return null;
