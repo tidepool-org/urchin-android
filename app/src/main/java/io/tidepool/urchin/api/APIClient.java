@@ -102,8 +102,8 @@ public class APIClient {
         __servers = new HashMap<>();
         try {
             __servers.put(PRODUCTION, new URL("https://api.tidepool.org"));
-            __servers.put(DEVELOPMENT, new URL("https://devel-api.tidepool.io"));
-            __servers.put(STAGING, new URL("https://staging-api.tidepool.io"));
+            __servers.put(DEVELOPMENT, new URL("https://dev-api.tidepool.org"));
+            __servers.put(STAGING, new URL("https://stg-api.tidepool.org"));
 
         } catch (MalformedURLException e) {
             // Should never happen
@@ -376,7 +376,7 @@ public class APIClient {
 
         String url;
         try {
-            url = new URL(getBaseURL(), "/auth/login").toString();
+            url = new URL(getBaseURL(), "/auth/logout").toString();
         } catch (MalformedURLException e) {
             listener.signedOut(0, e);
             return null;
