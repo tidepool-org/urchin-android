@@ -11,6 +11,8 @@ import android.support.v7.widget.CardView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.SpannableString;
+
+import io.realm.RealmConfiguration;
 import io.tidepool.urchin.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -59,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     private static final String PREFS_KEY_USERID = "PrefsUserId";
     private static final String PREFS_KEY_SERVER = "Server";
 
+    private Realm _realm;
     private APIClient _apiClient;
 
     // User to filter messages on, or null for all messages
@@ -143,9 +146,12 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         });
 
         // For now, we are going to blow away our database on an update
-        Realm realm = null;
+        RealmConfiguration realmConfiguration = new RealmConfiguration.Builder(this)
+                .deleteRealmIfMigrationNeeded()
+                .build();
+        Realm.setDefaultConfiguration(realmConfiguration);
         try {
-            realm = Realm.getInstance(this);
+            _realm = Realm.getDefaultInstance();
         } catch (RuntimeException e) {
             Log.e(LOG_TAG, "Failed to load realm database. Blowing away and trying anew.");
             File dbPath = getFilesDir();
@@ -155,7 +161,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             // Try again, this time we'll just blow up if it doesn't work
             try {
-                realm = Realm.getInstance(this);
+                _realm = Realm.getDefaultInstance();
             } catch (RuntimeException eInner) {
                 Log.e(LOG_TAG, "Failed to open / update the Realm database. Re-throwing.");
                 e.printStackTrace();
@@ -163,21 +169,15 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             }
         }
 
-
         // Create our API client on the appropriate service
-        _apiClient = new APIClient(this, getSelectedServer());
-
-        // BSK: We will leave the realm instance open for the lifetime of this activity,
-        // and will perform an extra close() in onDestroy().
+        setUpAPIClient(getSelectedServer());
     }
 
     @Override
     protected void onDestroy() {
+        _realm.close();
+
         super.onDestroy();
-        // Close out the dangling getInstance() from onCreate()
-        Realm realm = Realm.getInstance(this);
-        realm.close();
-        realm.close();
     }
 
     @Override
@@ -191,22 +191,19 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     }
 
     protected void populateNotes() {
-        Realm realm = Realm.getInstance(this);
-
         // Set up our query
         if ( _userFilter == null ) {
-            _notesResultSet = realm.where(Note.class).findAllSorted("timestamp", false);
+            _notesResultSet = _realm.where(Note.class).findAllSorted("timestamp");
             String title = getResources().getString(R.string.all_notes);
             setTitle(title);
 
         } else {
-            _notesResultSet = realm.where(Note.class).equalTo("groupid", _userFilter.getUserid())
-                    .findAllSorted("timestamp", false);
+            _notesResultSet = _realm.where(Note.class).equalTo("groupid", _userFilter.getUserid())
+                    .findAllSorted("timestamp");
             setTitle(_userFilter.getProfile().getFullName());
         }
 
         _recyclerView.setAdapter(new NotesAdapter());
-        realm.close();
     }
 
     @Override
@@ -245,18 +242,14 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             });
         }
 
-        Realm realm = Realm.getInstance(this);
-        realm.addChangeListener(this);
-        realm.close();
+        _realm.addChangeListener(this);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         _swipeRefreshLayout.setRefreshing(false);
-        Realm realm = Realm.getInstance(this);
-        realm.removeChangeListener(this);
-        realm.close();
+        _realm.removeChangeListener(this);
     }
 
     @Override
@@ -434,8 +427,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             _currentlyFetching = true;
             _swipeRefreshLayout.setRefreshing(true);
 
-            Realm realm = Realm.getInstance(this);
-            List<SharedUserId> userIds = realm.where(SharedUserId.class).findAll();
+            List<SharedUserId> userIds = _realm.where(SharedUserId.class).findAll();
 
             if ( _lastFetchDate == null ) {
                 _lastFetchDate = new Date();
@@ -471,14 +463,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
                     }
                 });
             }
-            realm.close();
         }
     }
 
     private void populateDropDownList() {
 
         // Make an adapter with the "extras": "sign out" and "all users".
-        List<User> users = UserFilterAdapter.createUserList(this);
+        List<User> users = UserFilterAdapter.createUserList();
         _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users, true));
         _dropDownListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -504,18 +495,16 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // First get the user out of the database
         User apiClientUser = _apiClient.getUser();
 
-        Realm realm = Realm.getInstance(this);
-        realm.beginTransaction();
-        realm.where(CurrentUser.class).findAll().clear();
-        CurrentUser newCurrentUser = realm.createObject(CurrentUser.class);
+        _realm.beginTransaction();
+        _realm.where(CurrentUser.class).findAll().clear();
+        CurrentUser newCurrentUser = _realm.createObject(CurrentUser.class);
         if ( user == null ) {
             // We want a real user object in here- it's the logged-in user.
             newCurrentUser.setCurrentUser(apiClientUser);
         } else {
             newCurrentUser.setCurrentUser(user);
         }
-        realm.commitTransaction();
-        realm.close();
+        _realm.commitTransaction();
 
         // Set our local copy and update the list of notes
         _userFilter = user;
@@ -533,13 +522,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private void restoreUserFilter() {
         String userId = getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_USERID, null);
-        User user = null;
         if ( userId != null ) {
-            Realm realm = Realm.getInstance(this);
-            user = realm.where(User.class).equalTo("userid", userId).findFirst();
-            realm.close();
+            User user = _realm.where(User.class).equalTo("userid", userId).findFirst();
+            setUserFilter(user);
         }
-        setUserFilter(user);
     }
 
     private void signOut() {
@@ -584,7 +570,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         // Save the selected server
         getPreferences(Context.MODE_PRIVATE).edit().putString(PREFS_KEY_SERVER, server).apply();
-        _apiClient = new APIClient(this, server);
+
+        // Set up new APIClient for server
+        setUpAPIClient(server);
 
         // Remove everything from our database
         _apiClient.clearDatabase();
@@ -621,13 +609,11 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             HashtagUtils.formatHashtags(bodyText, color, true);
             notesViewHolder._body.setText(bodyText, TextView.BufferType.SPANNABLE);
 
-            Realm realm = Realm.getInstance(MainActivity.this);
-
             User group = null;
             String groupId = note.getGroupid();
             String userId = note.getUserid();
             if ( groupId != null && !groupId.equals(userId) ) {
-                group = realm.where(User.class).equalTo("userid", groupId).findFirst();
+                group = _realm.where(User.class).equalTo("userid", groupId).findFirst();
             }
 
             if ( group != null ) {
@@ -653,8 +639,6 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             } else {
                 notesViewHolder._editTextView.setVisibility(View.GONE);
             }
-
-            realm.close();
         }
 
         @Override
@@ -671,6 +655,9 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         startActivityForResult(intent, REQ_NOTE);
     }
 
+    private void setUpAPIClient(String server) {
+        _apiClient = new APIClient(this, server);
+    }
 
     @Override
     public void onChange() {

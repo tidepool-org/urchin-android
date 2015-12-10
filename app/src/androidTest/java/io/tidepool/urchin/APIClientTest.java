@@ -6,6 +6,7 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.test.AndroidTestCase;
 import android.test.InstrumentationTestCase;
 import android.widget.Toast;
 
@@ -32,23 +33,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.Note;
+import io.tidepool.urchin.data.Session;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.Log;
 import io.tidepool.urchin.util.MiscUtils;
 
-@RunWith(AndroidJUnit4.class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class APIClientTest extends InstrumentationTestCase {
+public class APIClientTest extends AndroidTestCase {
     @Override
     @Before
     public void setUp() throws Exception {
-        injectInstrumentation(InstrumentationRegistry.getInstrumentation());
-        mTargetContext = getInstrumentation().getTargetContext();
+        mRealmConfiguration = new RealmConfiguration.Builder(getContext())
+                .name("test.realm")
+                .build();
+        Realm.deleteRealm(mRealmConfiguration);
+        Realm.setDefaultConfiguration(mRealmConfiguration);
 
         _setUpAPIClient(APIClient.DEVELOPMENT);
+    }
+
+    @Override
+    @After
+    public void tearDown() {
+        Realm.deleteRealm(mRealmConfiguration);
     }
 
     @Test
@@ -77,8 +89,10 @@ public class APIClientTest extends InstrumentationTestCase {
         });
         await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
 
+        String sessionId = mAPIClient.getSessionId();
         User user = (User) mAWaitHashMap.get("user");
         Exception exception = (Exception) mAWaitHashMap.get("exception");
+        assertThat(sessionId, notNullValue());
         assertThat(user, notNullValue());
         assertThat(exception, nullValue());
     }
@@ -125,55 +139,59 @@ public class APIClientTest extends InstrumentationTestCase {
         assertThat(error, nullValue());
     }
 
-// TODO: my - This is failing due to issues with Realm. The session ID is failing to be stored and later retrieved in the Realm it seems.
-//    @Test
-//    public void testRefreshToken() throws AssertionError {
-//        testSignInSuccess(); // TODO: my - After this, getSessionId is still null
-//
-//        mAwaitDone = new AtomicBoolean(false);
-//        mAPIClient.refreshToken(new APIClient.RefreshTokenListener() {
-//            @Override
-//            public void tokenRefreshed(Exception error) {
-//                mAWaitHashMap = new HashMap<String, Object>();
-//                mAWaitHashMap.put("error", error);
-//                mAwaitDone.set(true);
-//            }
-//        });
-//        await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
-//
-//        String sessionId = mAPIClient.getSessionId();
-//        Exception error = (Exception) mAWaitHashMap.get("error");
-//        assertThat(sessionId, notNullValue());
-//        assertThat(error, nullValue());
-//    }
+    @Test
+    public void testRefreshToken() throws AssertionError {
+        testSignInSuccess();
 
-// TODO: my - This is failing due to issues with Realm. The session ID is failing to be stored and later retrieved in the Realm it seems.
-//    @Test
-//    public void testPostNote() {
-//        testSignInSuccess();
-//
-//        Note note = new Note();
-//        note.setMessagetext("New note added from test.");
-//        note.setTimestamp(new Date());
-//        note.setGroupid(mAPIClient.getUser().getUserid());
-//        note.setUserid(mAPIClient.getUser().getUserid());
-//        note.setAuthorFullName(MiscUtils.getPrintableNameForUser(mAPIClient.getUser()));
-//        note.setGuid(UUID.randomUUID().toString());
-//
-//        mAwaitDone = new AtomicBoolean(false);
-//        mAPIClient.postNote(note, new APIClient.PostNoteListener() {
-//            @Override
-//            public void notePosted(Note note, Exception error) {
-//                mAWaitHashMap = new HashMap<String, Object>();
-//                mAWaitHashMap.put("error", error);
-//                mAwaitDone.set(true);
-//            }
-//        });
-//        await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
-//
-//        Exception error = (Exception) mAWaitHashMap.get("error");
-//        assertThat(error, nullValue());
-//    }
+        String sessionId = mAPIClient.getSessionId();
+        mAwaitDone = new AtomicBoolean(false);
+        mAPIClient.refreshToken(new APIClient.RefreshTokenListener() {
+            @Override
+            public void tokenRefreshed(Exception error) {
+                mAWaitHashMap = new HashMap<String, Object>();
+                mAWaitHashMap.put("error", error);
+                mAwaitDone.set(true);
+            }
+        });
+        await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+        sessionId = mAPIClient.getSessionId();
+        Exception error = (Exception) mAWaitHashMap.get("error");
+        assertThat(sessionId, notNullValue());
+        assertThat(error, nullValue());
+    }
+
+    @Test
+    public void testPostNote() {
+        testSignInSuccess();
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            Note note = new Note();
+            note.setMessagetext("New note added from test.");
+            note.setTimestamp(new Date());
+            note.setGroupid(mAPIClient.getUser().getUserid());
+            note.setUserid(mAPIClient.getUser().getUserid());
+            note.setAuthorFullName(MiscUtils.getPrintableNameForUser(mAPIClient.getUser()));
+            note.setGuid(UUID.randomUUID().toString());
+
+            mAwaitDone = new AtomicBoolean(false);
+            mAPIClient.postNote(note, new APIClient.PostNoteListener() {
+                @Override
+                public void notePosted(Note note, Exception error) {
+                    mAWaitHashMap = new HashMap<String, Object>();
+                    mAWaitHashMap.put("error", error);
+                    mAwaitDone.set(true);
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+            Exception error = (Exception) mAWaitHashMap.get("error");
+            assertThat(error, nullValue());
+        } finally {
+            realm.close();
+        }
+    }
 
     private void _testAllOn(String environment) throws AssertionError {
         _setUpAPIClient(environment);
@@ -197,11 +215,11 @@ public class APIClientTest extends InstrumentationTestCase {
     }
 
     private void _setUpAPIClient(String environment) {
-        mAPIClient = new APIClient(getInstrumentation().getTargetContext(), environment);
+        mAPIClient = new APIClient(getContext(), environment);
         Log.v(this.getClass().getName(), "APIClient set up for environment: " + environment);
     }
 
-    private Context mTargetContext;
+    private RealmConfiguration mRealmConfiguration;
     private APIClient mAPIClient;
     private AtomicBoolean mAwaitDone;
     private HashMap<String, Object> mAWaitHashMap;

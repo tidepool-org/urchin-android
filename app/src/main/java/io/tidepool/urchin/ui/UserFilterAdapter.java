@@ -48,34 +48,40 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
      * Helper method to create the list of valid users for both the main view and "add note" view
      * @return a list of User objects to be passed to this adapter's constructor
      */
-    public static List<User> createUserList(Context context) {
-        Realm realm = Realm.getInstance(context);
-
-        // Unfortunately Realm does not support nested or joined queries, so we'll have to a bit
-        // of manual labor here.
-
-        // Get all of the profiles that do not have a null patient field. These are the only users
-        // who can post a message.
-        RealmResults<SharedUserId> sharedUserIds = realm.where(SharedUserId.class).findAll();
-
-        // Create a set of users from this list that have patient fields in their profiles
+    public static List<User> createUserList() {
         List<User> users = new ArrayList<>();
-        for ( SharedUserId sharedUserId : sharedUserIds ) {
-            User user = realm.where(User.class).equalTo("userid", sharedUserId.getVal()).findFirst();
-            if ( user != null && user.getProfile() != null && user.getProfile().getPatient() != null ) {
-                users.add(user);
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            // Unfortunately Realm does not support nested or joined queries, so we'll have to a bit
+            // of manual labor here.
+
+            // Get all of the profiles that do not have a null patient field. These are the only users
+            // who can post a message.
+            RealmResults<SharedUserId> sharedUserIds = realm.where(SharedUserId.class).findAll();
+
+            // Create a set of users from this list that have patient fields in their profiles
+            users = new ArrayList<>();
+            for ( SharedUserId sharedUserId : sharedUserIds ) {
+                User user = realm.where(User.class).equalTo("userid", sharedUserId.getVal()).findFirst();
+                if ( user != null && user.getProfile() != null && user.getProfile().getPatient() != null ) {
+                    // Copy from realm since callers don't necessarily have a reference count for the realm
+                    // guaranteeing the liftime of this object.
+                    // user = realm.copyFromRealm(user); // TODO: my - 0 - revisit this
+                    users.add(user);
+                }
             }
+
+            // Sort alphabetically by fullname, as that seems to be the only field guaranteed to be set
+            Collections.sort(users, new Comparator<User>() {
+                @Override
+                public int compare(User lhs, User rhs) {
+                    return lhs.getProfile().getFullName().compareTo(rhs.getProfile().getFullName());
+                }
+            });
+        } finally {
+            realm.close();
         }
-
-        // Sort alphabetically by fullname, as that seems to be the only field guaranteed to be set
-        Collections.sort(users, new Comparator<User>() {
-            @Override
-            public int compare(User lhs, User rhs) {
-                return lhs.getProfile().getFullName().compareTo(rhs.getProfile().getFullName());
-            }
-        });
-
-        realm.close();
 
         return users;
     }

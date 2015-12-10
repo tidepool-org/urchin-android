@@ -73,6 +73,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private LinearLayout _dropDownLayout;
     private ListView _dropDownListView;
 
+    private Realm _realm;
     private User _currentUser;
 
     private Date _noteTime;
@@ -85,6 +86,9 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        _realm = Realm.getDefaultInstance();
+
         setContentView(R.layout.activity_new_note);
 
         _noteEditText = (EditText)findViewById(R.id.note_edit_text);
@@ -128,6 +132,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // way to make this work...
         _noteEditText.addTextChangedListener(new TextWatcher() {
             boolean _isChanging;
+
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
@@ -135,11 +140,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-             }
+            }
 
             @Override
             public void afterTextChanged(Editable s) {
-                if ( !_updatingText ) {
+                if (!_updatingText) {
                     // Format the text once the user has stopped typing
                     _formatTextHandler.removeCallbacksAndMessages(null);
                     _formatTextHandler.postDelayed(new Runnable() {
@@ -152,16 +157,14 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             }
         });
 
-        // Set our current user to whatever is in the database, or the first user found if none exists
-        Realm realm = Realm.getInstance(this);
-        realm.addChangeListener(this);
+        _realm.addChangeListener(this);
 
-        CurrentUser currentUser = realm.where(CurrentUser.class).findFirst();
+        CurrentUser currentUser = _realm.where(CurrentUser.class).findFirst();
         if ( currentUser != null ) {
             setCurrentUser(currentUser.getCurrentUser());
         } else {
             // Find a user that has a profile
-            RealmResults<User> users = realm.where(User.class).findAllSorted("fullName");
+            RealmResults<User> users = _realm.where(User.class).findAllSorted("fullName");
             for ( User user : users ) {
                 if ( user.getProfile() != null && user.getProfile().getPatient() != null ) {
                     setCurrentUser(user);
@@ -169,7 +172,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 }
             }
         }
-        realm.close();
 
         // See if we were launched to create a new note, or to edit an existing one
         Bundle args = getIntent().getExtras();
@@ -184,14 +186,14 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Realm realm = Realm.getInstance(this);
-        realm.removeChangeListener(this);
+
+        _realm.removeChangeListener(this);
+        _realm.close();
     }
 
     private void setEditing(String messageId) {
-        Realm realm = Realm.getInstance(this);
-        Note note = realm.where(Note.class).equalTo("id", messageId).findFirst();
-        User author = realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
+        Note note = _realm.where(Note.class).equalTo("id", messageId).findFirst();
+        User author = _realm.where(User.class).equalTo("userid", note.getUserid()).findFirst();
         setCurrentUser(author);
         _noteTime = note.getTimestamp();
         setDateTimeText(_noteTime);
@@ -205,17 +207,15 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         _currentUser = user;
         if ( user != null ) {
             setTitle(MiscUtils.getPrintableNameForUser(_currentUser));
-            Realm realm = Realm.getInstance(this);
-            realm.beginTransaction();
-            RealmResults<CurrentUser> results = realm.where(CurrentUser.class).findAll();
+            _realm.beginTransaction();
+            RealmResults<CurrentUser> results = _realm.where(CurrentUser.class).findAll();
             if (results.size() > 0) {
                 results.clear();
             }
 
-            CurrentUser u = realm.createObject(CurrentUser.class);
+            CurrentUser u = _realm.createObject(CurrentUser.class);
             u.setCurrentUser(user);
-            realm.commitTransaction();
-            realm.close();
+            _realm.commitTransaction();
         }
     }
 
@@ -290,11 +290,12 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                     if (error == null) {
                         // Note was posted. Update the note in the database.
                         Toast.makeText(NewNoteActivity.this, R.string.note_updated, Toast.LENGTH_LONG).show();
-                        Realm realm = Realm.getInstance(NewNoteActivity.this);
-                        realm.beginTransaction();
+
+                        _realm.beginTransaction();
                         _editingNote.setMessagetext(note.getMessagetext());
                         _editingNote.setTimestamp(note.getTimestamp());
-                        realm.commitTransaction();
+                        _realm.commitTransaction();
+
                         finish();
                     } else {
                         String errorMessage = getResources().getString(R.string.error_updating, error.getMessage());
@@ -308,7 +309,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private void populateDropDownList() {
 
         // Make an adapter with the "extras": "sign out" and "all users".
-        List<User> users = UserFilterAdapter.createUserList(this);
+        List<User> users = UserFilterAdapter.createUserList();
         _dropDownListView.setAdapter(new UserFilterAdapter(this, R.layout.list_item_user, users, false));
         _dropDownListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -532,7 +533,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         MainActivity.getInstance().getAPIClient().deleteNote(_editingNote, new APIClient.DeleteNoteListener() {
             @Override
             public void noteDeleted(Exception error) {
-                if ( error == null ) {
+                if (error == null) {
                     Toast.makeText(NewNoteActivity.this, R.string.note_deleted, Toast.LENGTH_LONG).show();
                     finish();
                 } else {
@@ -582,8 +583,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // TESTING
 
         // Get the tags from the database
-        Realm realm = Realm.getInstance(this);
-        RealmResults<Hashtag> allTags = realm.where(Hashtag.class).findAllSorted("tag");
+        RealmResults<Hashtag> allTags = _realm.where(Hashtag.class).findAllSorted("tag");
         Set<String> uniqueTags = new HashSet<>();
         for ( Hashtag tag : allTags ) {
             uniqueTags.add(tag.getTag());
@@ -597,7 +597,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // Get the counts of each of the hashtags
         final Map<String, Long> tagCounts = new HashMap<>();
         for ( String tag : uniqueTags ) {
-            tagCounts.put(tag, realm.where(Hashtag.class).equalTo("tag", tag).count());
+            tagCounts.put(tag, _realm.where(Hashtag.class).equalTo("tag", tag).count());
             // Log.d(LOG_TAG, "Tag: " + tag + " Count: " + tagCounts.get(tag));
         }
 
@@ -620,7 +620,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
         for ( String tagName : sortedTags ) {
-            RealmResults<Hashtag> results = realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
+            RealmResults<Hashtag> results = _realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
             Hashtag tag = null;
             if ( results.size() > 0 ) {
                 tag = results.first();
@@ -642,8 +642,6 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
                 addHashtag(tag);
             }
         }));
-
-        realm.close();
     }
 
     private void addHashtag(String tag) {
@@ -667,12 +665,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public void onChange() {
         // Realm database has changed
-        Realm realm = Realm.getInstance(this);
-        realm.removeChangeListener(this);
+        _realm.removeChangeListener(this);
         Log.d(LOG_TAG, "Realm database has changed- repopulating drop-down list and hashtag view");
         populateDropDownList();
         setupHashtags();
         setCurrentUser(_currentUser);
-        realm.addChangeListener(this);
+        _realm.addChangeListener(this);
     }
 }

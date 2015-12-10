@@ -30,6 +30,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
@@ -62,9 +63,6 @@ import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.MiscUtils;
 
-/**
- * Created by Brian King on 8/25/15.
- */
 public class APIClient {
 
     public static final String PRODUCTION = "Production";
@@ -97,6 +95,9 @@ public class APIClient {
     // Context used to create us
     private Context _context;
 
+    // Realm instance
+    private Realm _realm;
+
     // Static initialization
     static {
         __servers = new HashMap<>();
@@ -117,7 +118,6 @@ public class APIClient {
      * @param server Server to connect to, one of Production, Development or Staging
      */
     public APIClient(Context context, String server) {
-        _context = context;
         setServer(server);
 
         // Set up the disk cache for caching responses
@@ -154,16 +154,19 @@ public class APIClient {
      * @return the current user
      */
     public User getUser() {
-        Realm realm = Realm.getInstance(_context);
-        RealmResults<Session> results = realm.where(Session.class)
-                .findAll();
-        if ( results.size() == 0 ) {
+        User user = null;
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            RealmResults<Session> results = realm.where(Session.class)
+                    .findAll();
+            if (results.size() > 0) {
+                user = results.first().getUser();
+            }
+        } finally {
             realm.close();
-            return null;
         }
 
-        User user = results.first().getUser();
-        realm.close();
         return user;
     }
 
@@ -172,16 +175,20 @@ public class APIClient {
      * @return the session ID, or null if not authenticated
      */
     public String getSessionId() {
-        Realm realm = Realm.getInstance(_context);
-        RealmResults<Session> results = realm.where(Session.class)
-                .findAll();
-        if ( results.size() == 0 ) {
-            return null;
+        String sessionId = null;
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            RealmResults<Session> results = realm.where(Session.class)
+                    .findAll();
+            if (results.size() > 0) {
+                Session session = results.first();
+                sessionId = session.getSessionId();
+            }
+        } finally {
+            realm.close();
         }
 
-        Session session = results.first();
-        String sessionId = session.getSessionId();
-        realm.close();
         return sessionId;
     }
 
@@ -208,11 +215,14 @@ public class APIClient {
      */
     public Request signIn(String username, String password, final SignInListener listener) {
         // Clear out the database, just in case there is anything left over
-        Realm realm = Realm.getInstance(_context);
-        realm.beginTransaction();
-        realm.where(Session.class).findAll().clear();
-        realm.commitTransaction();
-        realm.close();
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            realm.beginTransaction();
+            realm.where(Session.class).findAll().clear();
+            realm.commitTransaction();
+        } finally {
+            realm.close();
+        }
 
         // Create the authorization header with base64-encoded username:password
         final Map<String, String> headers = getHeaders();
@@ -236,25 +246,30 @@ public class APIClient {
             // Listener overrides
             @Override
             public void onResponse(String response) {
-                Realm realm = Realm.getInstance(_context);
                 Log.d(LOG_TAG, "Login success: " + response);
-                RealmResults<Session> sessions = realm.where(Session.class).findAll();
-                if ( sessions.size() == 0 ) {
-                    // No session ID found
-                    listener.signInComplete(null, new Exception("No session ID returned in headers"));
-                    return;
+
+                Realm realm = Realm.getDefaultInstance();
+                try {
+                    RealmResults<Session> sessions = realm.where(Session.class).findAll();
+                    if ( sessions.size() == 0 ) {
+                        // No session ID found
+                        listener.signInComplete(null, new Exception("No session ID returned in headers"));
+                        return;
+                    }
+
+                    Session s = sessions.first();
+
+                    Gson gson = getGson(DEFAULT_DATE_FORMAT);
+                    User user = gson.fromJson(response, User.class);
+                    realm.beginTransaction();
+                    User copiedUser = realm.copyToRealmOrUpdate(user);
+                    s.setUser(copiedUser);
+                    realm.commitTransaction();
+
+                    listener.signInComplete(user, null);
+                } finally {
+                    realm.close();
                 }
-
-                Session s = sessions.first();
-
-                Gson gson = getGson(DEFAULT_DATE_FORMAT);
-                User user = gson.fromJson(response, User.class);
-                realm.beginTransaction();
-                User copiedUser = realm.copyToRealmOrUpdate(user);
-                s.setUser(copiedUser);
-                realm.commitTransaction();
-                realm.close();
-                listener.signInComplete(user, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -269,21 +284,23 @@ public class APIClient {
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
                 if ( sessionId != null ) {
-                    Realm realm = Realm.getInstance(_context);
+                    Realm realm = Realm.getDefaultInstance();
+                    try {
+                        realm.beginTransaction();
 
-                    realm.beginTransaction();
+                        // Get rid of any old sessions
+                        realm.where(Session.class).findAll().clear();
 
-                    // Get rid of any old sessions
-                    realm.where(Session.class).findAll().clear();
+                        // Create the session in the database
+                        Session s = realm.createObject(Session.class);
+                        s.setSessionId(sessionId);
+                        Log.d(LOG_TAG, "Session ID: " + sessionId);
+                        s.setKey(Session.SESSION_KEY);
 
-                    // Create the session in the database
-                    Session s = realm.createObject(Session.class);
-                    s.setSessionId(sessionId);
-                    Log.d(LOG_TAG, "Session ID: " + sessionId);
-                    s.setKey(Session.SESSION_KEY);
-
-                    realm.commitTransaction();
-                    realm.close();
+                        realm.commitTransaction();
+                    } finally {
+                        realm.close();
+                    }
                 }
                 return super.parseNetworkResponse(response);
             }
@@ -337,20 +354,22 @@ public class APIClient {
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
                 if ( sessionId != null ) {
-                    Realm realm = Realm.getInstance(_context);
+                    Realm realm = Realm.getDefaultInstance();
+                    try {
+                        realm.beginTransaction();
 
-                    realm.beginTransaction();
+                        // Get the current session
+                        Session s = realm.where(Session.class).findAll().first();
 
-                    // Get the current session
-                    Session s = realm.where(Session.class).findAll().first();
+                        // Update the session ID
+                        s.setSessionId(sessionId);
 
-                    // Update the session ID
-                    s.setSessionId(sessionId);
+                        Log.d(LOG_TAG, "Session ID refreshed: " + sessionId);
 
-                    Log.d(LOG_TAG, "Session ID refreshed: " + sessionId);
-
-                    realm.commitTransaction();
-                    realm.close();
+                        realm.commitTransaction();
+                    } finally {
+                        realm.close();
+                    }
                 }
                 return super.parseNetworkResponse(response);
             }
@@ -442,19 +461,23 @@ public class APIClient {
                     return;
                 }
 
-                Realm realm = Realm.getInstance(_context);
-                realm.beginTransaction();
-                Note sentNote = realm.copyToRealmOrUpdate(note);
+                Realm realm = Realm.getDefaultInstance();
+                try {
+                    realm.beginTransaction();
+                    Note sentNote = realm.copyToRealmOrUpdate(note);
 
-                // Update the hashtags for this note.
-                List<Hashtag> hashtags = HashtagUtils.parseHashtags(sentNote.getMessagetext());
-                for ( Hashtag hash : hashtags ) {
-                    hash.setOwnerId(sentNote.getUserid());
-                    sentNote.getHashtags().add(hash);
+                    // Update the hashtags for this note.
+                    List<Hashtag> hashtags = HashtagUtils.parseHashtags(sentNote.getMessagetext());
+                    for ( Hashtag hash : hashtags ) {
+                        hash.setOwnerId(sentNote.getUserid());
+                        sentNote.getHashtags().add(hash);
+                    }
+                    realm.commitTransaction();
+
+                    listener.notePosted(sentNote, null);
+                } finally {
+                    realm.close();
                 }
-                realm.commitTransaction();
-                realm.close();
-                listener.notePosted(sentNote, null);
             }
         }, new Response.ErrorListener() {
             @Override
@@ -564,11 +587,14 @@ public class APIClient {
             @Override
             public void onResponse(String response) {
                 // All is well. Delete the note from our database.
-                Realm realm = Realm.getInstance(_context);
-                realm.beginTransaction();
-                realm.where(Note.class).equalTo("id", noteId).findAll().clear();
-                realm.commitTransaction();
-                realm.close();
+                Realm realm = Realm.getDefaultInstance();
+                try {
+                    realm.beginTransaction();
+                    realm.where(Note.class).equalTo("id", noteId).findAll().clear();
+                    realm.commitTransaction();
+                } finally {
+                    realm.close();
+                }
                 listener.noteDeleted(null);
             }
         }, new Response.ErrorListener() {
@@ -590,19 +616,22 @@ public class APIClient {
 
     public void clearDatabase() {
         // Clean  out the database
-        Realm realm = Realm.getInstance(_context);
-        realm.beginTransaction();
-        realm.where(CurrentUser.class).findAll().clear();
-        realm.where(EmailAddress.class).findAll().clear();
-        realm.where(Hashtag.class).findAll().clear();
-        realm.where(Note.class).findAll().clear();
-        realm.where(Patient.class).findAll().clear();
-        realm.where(Profile.class).findAll().clear();
-        realm.where(Session.class).findAll().clear();
-        realm.where(SharedUserId.class).findAll().clear();
-        realm.where(User.class).findAll().clear();
-        realm.commitTransaction();
-        realm.close();
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            realm.beginTransaction();
+            realm.where(CurrentUser.class).findAll().clear();
+            realm.where(EmailAddress.class).findAll().clear();
+            realm.where(Hashtag.class).findAll().clear();
+            realm.where(Note.class).findAll().clear();
+            realm.where(Patient.class).findAll().clear();
+            realm.where(Profile.class).findAll().clear();
+            realm.where(Session.class).findAll().clear();
+            realm.where(SharedUserId.class).findAll().clear();
+            realm.where(User.class).findAll().clear();
+            realm.commitTransaction();
+        } finally {
+            realm.close();
+        }
     }
 
     /**
@@ -675,64 +704,77 @@ public class APIClient {
         public abstract void fetchComplete(RealmList<SharedUserId> userIds, Exception error);
     }
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
-        // Build the URL
-        String url = null;
+        StringRequest req = null;
+
+        Realm realm = Realm.getDefaultInstance();
         try {
-            url = new URL(getBaseURL(), "/access/groups/" + getUser().getUserid()).toString();
-        } catch (MalformedURLException e) {
-            listener.fetchComplete(null, e);
-            return null;
+            // Build the URL
+            String url = null;
+            try {
+                url = new URL(getBaseURL(), "/access/groups/" + getUser().getUserid()).toString();
+            } catch (MalformedURLException e) {
+                listener.fetchComplete(null, e);
+                return null;
+            }
+
+            req = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    Realm realm = Realm.getDefaultInstance();
+                    try {
+                        JSONObject jsonObject = null;
+                        try {
+                            Log.d(LOG_TAG, "Groups: " + response);
+                            jsonObject = new JSONObject(response);
+                        } catch (JSONException e) {
+                            listener.fetchComplete(null, e);
+                            return;
+                        }
+
+                        RealmList<SharedUserId> userIds = new RealmList<>();
+                        Iterator iter = jsonObject.keys();
+
+                        User user = getUser();
+
+                        realm.beginTransaction();
+
+                        // Out with the old
+                        realm.where(SharedUserId.class).findAll().clear();
+
+                        while ( iter.hasNext() ) {
+                            String viewableId = (String)iter.next();
+                            userIds.add(new SharedUserId(viewableId));
+                        }
+
+                        // Put the IDs into the database
+                        user.getViewableUserIds().removeAll(user.getViewableUserIds());
+                        user.getViewableUserIds().addAll(userIds);
+
+                        realm.commitTransaction();
+
+                        listener.fetchComplete(userIds, null);
+                    } finally {
+                        realm.close();
+                    }
+
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    listener.fetchComplete(null, error);
+                }
+            }) {
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    return APIClient.this.getHeaders();
+                }
+            };
+
+            _requestQueue.add(req);
+        } finally {
+            realm.close();
         }
 
-        StringRequest req = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                Realm realm = Realm.getInstance(_context);
-                JSONObject jsonObject = null;
-                try {
-                    Log.d(LOG_TAG, "Groups: " + response);
-                    jsonObject = new JSONObject(response);
-                } catch (JSONException e) {
-                    listener.fetchComplete(null, e);
-                    return;
-                }
-
-                RealmList<SharedUserId> userIds = new RealmList<>();
-                Iterator iter = jsonObject.keys();
-
-                User user = getUser();
-
-                realm.beginTransaction();
-
-                // Out with the old
-                realm.where(SharedUserId.class).findAll().clear();
-
-                while ( iter.hasNext() ) {
-                    String viewableId = (String)iter.next();
-                    userIds.add(new SharedUserId(viewableId));
-                }
-
-                // Put the IDs into the database
-                user.getViewableUserIds().removeAll(user.getViewableUserIds());
-                user.getViewableUserIds().addAll(userIds);
-
-                realm.commitTransaction();
-
-                listener.fetchComplete(userIds, null);
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                listener.fetchComplete(null, error);
-            }
-        }) {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                return APIClient.this.getHeaders();
-            }
-        };
-
-        _requestQueue.add(req);
         return req;
     }
 
@@ -760,21 +802,25 @@ public class APIClient {
                 fakeProfile.setUserId(userId);
 
                 Log.d(LOG_TAG, "Profile response: " + response);
-                Realm realm = Realm.getInstance(_context);
-                realm.beginTransaction();
-                Profile profile = realm.copyToRealmOrUpdate(fakeProfile);
-                // Create a user with this profile and add / update it
-                User user = realm.where(User.class).equalTo("userid", userId).findFirst();
-                if ( user == null ) {
-                    user = realm.createObject(User.class);
-                    user.setUserid(userId);
+                Realm realm = Realm.getDefaultInstance();
+                try {
+                    realm.beginTransaction();
+                    Profile profile = realm.copyToRealmOrUpdate(fakeProfile);
+                    // Create a user with this profile and add / update it
+                    User user = realm.where(User.class).equalTo("userid", userId).findFirst();
+                    if ( user == null ) {
+                        user = realm.createObject(User.class);
+                        user.setUserid(userId);
+                    }
+                    user.setProfile(profile);
+                    realm.commitTransaction();
+                    if ( listener != null ) {
+                        listener.profileReceived(profile, null);
+                    }
+
+                } finally {
+                    realm.close();
                 }
-                user.setProfile(profile);
-                realm.commitTransaction();
-                if ( listener != null ) {
-                    listener.profileReceived(profile, null);
-                }
-                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
@@ -822,81 +868,83 @@ public class APIClient {
                 // Returned JSON is an object array called "messages"
                 Log.d(LOG_TAG, "Messages response:" + json);
 
-                Realm realm = Realm.getInstance(_context);
-                RealmList<Note> noteList = new RealmList<>();
-                realm.beginTransaction();
-
-                // Get rid of all of the hashtags for this user. We'll add them in as we go
-                // through the messages
-                realm.where(Hashtag.class)
-                        .equalTo("ownerId", userId)
-                        .findAll().clear();
-
-                // Also get rid of the messages for this user in the specified date range, in case some were deleted.
-                realm.where(Note.class)
-                        .equalTo("groupid", userId)
-                        .greaterThan("timestamp", fromDate)
-                        .lessThanOrEqualTo("timestamp", toDate)
-                        .findAll().clear();
-
-                // Odd date format in the messages
-                Gson gson = getGson(MESSAGE_DATE_FORMAT);
+                Realm realm = Realm.getDefaultInstance();
                 try {
-                    JSONObject obj = new JSONObject(json);
-                    JSONArray messages = obj.getJSONArray("messages");
+                    RealmList<Note> noteList = new RealmList<>();
+                    realm.beginTransaction();
 
-                    for ( int i = 0; i < messages.length(); i++ ) {
-                        String msgJson = messages.getString(i);
+                    // Get rid of all of the hashtags for this user. We'll add them in as we go
+                    // through the messages
+                    realm.where(Hashtag.class)
+                            .equalTo("ownerId", userId)
+                            .findAll().clear();
 
-                        Note note = gson.fromJson(msgJson, Note.class);
+                    // Also get rid of the messages for this user in the specified date range, in case some were deleted.
+                    realm.where(Note.class)
+                            .equalTo("groupid", userId)
+                            .greaterThan("timestamp", fromDate)
+                            .lessThanOrEqualTo("timestamp", toDate)
+                            .findAll().clear();
 
-                        // Get the fullName field from the "user" property and set it
-                        JSONObject jsonObject = new JSONObject(msgJson);
-                        JSONObject userObject = jsonObject.getJSONObject("user");
-                        note.setAuthorFullName(userObject.getString("fullName"));
+                    // Odd date format in the messages
+                    Gson gson = getGson(MESSAGE_DATE_FORMAT);
+                    try {
+                        JSONObject obj = new JSONObject(json);
+                        JSONArray messages = obj.getJSONArray("messages");
 
-                        note = realm.copyToRealmOrUpdate(note);
+                        for ( int i = 0; i < messages.length(); i++ ) {
+                            String msgJson = messages.getString(i);
 
-                        // Update the hashtags for this note.
-                        note.getHashtags().clear();
-                        List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
-                        for ( Hashtag hash : hashtags ) {
-                            hash.setOwnerId(userId);
-                            note.getHashtags().add(hash);
+                            Note note = gson.fromJson(msgJson, Note.class);
+
+                            // Get the fullName field from the "user" property and set it
+                            JSONObject jsonObject = new JSONObject(msgJson);
+                            JSONObject userObject = jsonObject.getJSONObject("user");
+                            note.setAuthorFullName(userObject.getString("fullName"));
+
+                            note = realm.copyToRealmOrUpdate(note);
+
+                            // Update the hashtags for this note.
+                            note.getHashtags().clear();
+                            List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
+                            for ( Hashtag hash : hashtags ) {
+                                hash.setOwnerId(userId);
+                                note.getHashtags().add(hash);
+                            }
+
+                            // See if we're missing any users that are mentioned in the note
+                            // Check the note author (userid)
+                            RealmResults userSearch = realm.where(User.class).equalTo("userid", note.getUserid()).findAll();
+                            if ( userSearch.size() == 0 ) {
+                                Log.d(LOG_TAG, "Getting profile for user: " + note.getUserid());
+                                getProfileForUserId(note.getUserid(), null);
+                            }
+
+                            // Also check the group (groupid)
+                            userSearch = realm.where(User.class).equalTo("userid", note.getGroupid()).findAll();
+                            if ( userSearch.size() == 0 ) {
+                                Log.d(LOG_TAG, "Getting profile for group: " + note.getGroupid());
+                                getProfileForUserId(note.getGroupid(), null);
+                            }
+                            noteList.add(note);
                         }
-
-                        // See if we're missing any users that are mentioned in the note
-                        // Check the note author (userid)
-                        RealmResults userSearch = realm.where(User.class).equalTo("userid", note.getUserid()).findAll();
-                        if ( userSearch.size() == 0 ) {
-                            Log.d(LOG_TAG, "Getting profile for user: " + note.getUserid());
-                            getProfileForUserId(note.getUserid(), null);
-                        }
-
-                        // Also check the group (groupid)
-                        userSearch = realm.where(User.class).equalTo("userid", note.getGroupid()).findAll();
-                        if ( userSearch.size() == 0 ) {
-                            Log.d(LOG_TAG, "Getting profile for group: " + note.getGroupid());
-                            getProfileForUserId(note.getGroupid(), null);
-                        }
-                        noteList.add(note);
+                    } catch (JSONException e) {
+                        Log.e(LOG_TAG, "Error parsing notes: " + e);
+                        realm.cancelTransaction();
+                        listener.notesReceived(null, e);
+                        return;
+                    } catch (com.google.gson.JsonSyntaxException e) {
+                        Log.e(LOG_TAG, "Error parsing notes: " + e);
+                        realm.cancelTransaction();
+                        listener.notesReceived(null, e);
+                        return;
                     }
-                } catch (JSONException e) {
-                    Log.e(LOG_TAG, "Error parsing notes: " + e);
-                    realm.cancelTransaction();
-                    listener.notesReceived(null, e);
-                    realm.close();
-                    return;
-                } catch (com.google.gson.JsonSyntaxException e) {
-                    Log.e(LOG_TAG, "Error parsing notes: " + e);
-                    realm.cancelTransaction();
-                    listener.notesReceived(null, e);
+
+                    realm.commitTransaction();
+                    listener.notesReceived(noteList, null);
+                } finally {
                     realm.close();
                 }
-
-                realm.commitTransaction();
-                listener.notesReceived(noteList, null);
-                realm.close();
             }
         }, new Response.ErrorListener() {
             @Override
