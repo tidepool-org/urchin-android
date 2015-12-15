@@ -14,6 +14,7 @@ import android.text.SpannableString;
 
 import io.realm.RealmConfiguration;
 import io.tidepool.urchin.util.Log;
+
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -87,11 +88,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     // Access to our instance
     private static MainActivity __thisInstance;
+
     public static MainActivity getInstance() {
         return __thisInstance;
     }
+
     // Provide access to our APIClient
-    public  APIClient getAPIClient() {
+    public APIClient getAPIClient() {
         return _apiClient;
     }
 
@@ -103,41 +106,41 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         setContentView(R.layout.activity_main);
 
-        _recyclerView = (RecyclerView)findViewById(R.id.recycler_view);
+        _recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         _recyclerView.setLayoutManager(new LinearLayoutManager(this));
         _recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                LinearLayoutManager lm = (LinearLayoutManager)recyclerView.getLayoutManager();
+                LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
                 int pos = lm.findFirstVisibleItemPosition();
-                if ( pos >= lm.getItemCount() - 10 ) {
+                if (pos >= lm.getItemCount() - 10) {
                     // We've neared the end of the set of data. Get more.
                     fetchMoreData();
                 }
             }
         });
 
-        _swipeRefreshLayout = (SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
+        _swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
         _swipeRefreshLayout.setOnRefreshListener(this);
 
-        _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
+        _dropDownLayout = (LinearLayout) findViewById(R.id.layout_drop_down);
         _dropDownLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showDropDownMenu(false);
             }
         });
-        _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+        _dropDownListView = (ListView) findViewById(R.id.listview_filter);
 
         // Add a footer with the version / server
-        LinearLayout footerLayout = (LinearLayout)getLayoutInflater().inflate(R.layout.version, null);
-        _footerTextView = (TextView)footerLayout.findViewById(R.id.version_textview);
+        LinearLayout footerLayout = (LinearLayout) getLayoutInflater().inflate(R.layout.version, null);
+        _footerTextView = (TextView) footerLayout.findViewById(R.id.version_textview);
         _footerTextView.setText(MiscUtils.getAppInfoString(this));
 
         _dropDownListView.addFooterView(footerLayout);
 
-        _addButton = (ImageButton)findViewById(R.id.add_button);
+        _addButton = (ImageButton) findViewById(R.id.add_button);
         _addButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -165,7 +168,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             } catch (RuntimeException eInner) {
                 Log.e(LOG_TAG, "Failed to open / update the Realm database. Re-throwing.");
                 e.printStackTrace();
-                throw(eInner);
+                throw (eInner);
             }
         }
 
@@ -183,7 +186,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     @Override
     public void onBackPressed() {
         // Let the back button dismiss the drop-down menu if present
-        if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
+        if (_dropDownLayout.getVisibility() == View.VISIBLE) {
             showDropDownMenu(false);
         } else {
             super.onBackPressed();
@@ -192,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     protected void populateNotes() {
         // Set up our query
-        if ( _userFilter == null ) {
+        if (_userFilter == null) {
             _notesResultSet = _realm.where(Note.class).findAllSorted("timestamp");
             String title = getResources().getString(R.string.all_notes);
             setTitle(title);
@@ -214,7 +217,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         String sessionId = _apiClient.getSessionId();
         User user = _apiClient.getUser();
-        if ( sessionId == null || user == null ) {
+        if (sessionId == null || user == null) {
             // We need to sign in
             showLogin();
         } else {
@@ -266,8 +269,8 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        if ( id == R.id.action_filter_notes ) {
-            if ( _dropDownLayout.getVisibility() == View.INVISIBLE ) {
+        if (id == R.id.action_filter_notes) {
+            if (_dropDownLayout.getVisibility() == View.INVISIBLE) {
                 populateDropDownList();
                 showDropDownMenu(true);
             } else {
@@ -285,34 +288,34 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     }
 
     private void showDropDownMenu(boolean show) {
-        if ( show ) {
+        if (show) {
             _addButton.setVisibility(View.INVISIBLE);
             _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
             _dropDownLayout.requestLayout();
 
             _dropDownLayout.animate()
                     .translationY(0)
-            .setListener(new Animator.AnimatorListener() {
-                @Override
-                public void onAnimationStart(Animator animation) {
-                    _dropDownLayout.setVisibility(View.VISIBLE);
-                }
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animation) {
+                            _dropDownLayout.setVisibility(View.VISIBLE);
+                        }
 
-                @Override
-                public void onAnimationEnd(Animator animation) {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
 
-                }
+                        }
 
-                @Override
-                public void onAnimationCancel(Animator animation) {
+                        @Override
+                        public void onAnimationCancel(Animator animation) {
 
-                }
+                        }
 
-                @Override
-                public void onAnimationRepeat(Animator animation) {
+                        @Override
+                        public void onAnimationRepeat(Animator animation) {
 
-                }
-            });
+                        }
+                    });
         } else {
             _addButton.setVisibility(View.VISIBLE);
             _dropDownLayout.animate()
@@ -344,13 +347,13 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch ( requestCode ) {
+        switch (requestCode) {
             case REQ_LOGIN:
                 // Sent from the LoginActivity.
                 // Get the auth token and user from the intent
-                if ( resultCode == Activity.RESULT_OK ) {
+                if (resultCode == Activity.RESULT_OK) {
                     Log.d(LOG_TAG, "Sign-In success");
-                    if ( data.getBooleanExtra(LoginActivity.BUNDLE_REMEMBER_ME, false) ) {
+                    if (data.getBooleanExtra(LoginActivity.BUNDLE_REMEMBER_ME, false)) {
                         Log.d(LOG_TAG, "Remember Me!");
                     }
                     updateUser();
@@ -397,7 +400,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _lastFetchDate = from;
         _allDataFetched = false;
 
-        if ( userIds != null ) {
+        if (userIds != null) {
             for (SharedUserId userId : userIds) {
                 _apiClient.getProfileForUserId(userId.getVal(), new APIClient.ProfileListener() {
                     @Override
@@ -421,7 +424,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private void fetchMoreData() {
 
-        if ( !_currentlyFetching && !_allDataFetched) {
+        if (!_currentlyFetching && !_allDataFetched) {
             Log.d(LOG_TAG, "fetchMoreData");
 
             _currentlyFetching = true;
@@ -429,7 +432,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             List<SharedUserId> userIds = _realm.where(SharedUserId.class).findAll();
 
-            if ( _lastFetchDate == null ) {
+            if (_lastFetchDate == null) {
                 _lastFetchDate = new Date();
             }
 
@@ -445,16 +448,16 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
             final int startNoteCount = _recyclerView.getAdapter().getItemCount();
 
-            for ( SharedUserId userId : userIds ) {
+            for (SharedUserId userId : userIds) {
                 _apiClient.getNotes(userId.getVal(), from, to, new APIClient.NotesListener() {
                     @Override
                     public void notesReceived(RealmList<Note> notes, Exception error) {
                         _remainingUserFetchCount--;
-                        if ( _remainingUserFetchCount <= 0 ) {
+                        if (_remainingUserFetchCount <= 0) {
                             _currentlyFetching = false;
                             _swipeRefreshLayout.setRefreshing(false);
 
-                            if ( startNoteCount == _recyclerView.getAdapter().getItemCount() ) {
+                            if (startNoteCount == _recyclerView.getAdapter().getItemCount()) {
                                 // No more data, it appears.
                                 Log.d(LOG_TAG, "No more data received- assuming this is the end.");
                                 _allDataFetched = true;
@@ -498,7 +501,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         _realm.beginTransaction();
         _realm.where(CurrentUser.class).findAll().clear();
         CurrentUser newCurrentUser = _realm.createObject(CurrentUser.class);
-        if ( user == null ) {
+        if (user == null) {
             // We want a real user object in here- it's the logged-in user.
             newCurrentUser.setCurrentUser(apiClientUser);
         } else {
@@ -511,7 +514,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
         populateNotes();
 
         // Save the last user in preferences
-        if ( user == null ) {
+        if (user == null) {
             getPreferences(Context.MODE_PRIVATE).edit()
                     .remove(PREFS_KEY_USERID).apply();
         } else {
@@ -522,7 +525,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
     private void restoreUserFilter() {
         String userId = getPreferences(Context.MODE_PRIVATE).getString(PREFS_KEY_USERID, null);
-        if ( userId != null ) {
+        if (userId != null) {
             User user = _realm.where(User.class).equalTo("userid", userId).findFirst();
             setUserFilter(user);
         }
@@ -586,10 +589,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
 
         public NotesViewHolder(View itemView) {
             super(itemView);
-            _author = (TextView)itemView.findViewById(R.id.note_author);
-            _date = (TextView)itemView.findViewById(R.id.note_date);
-            _body = (TextView)itemView.findViewById(R.id.note_body);
-            _editTextView = (TextView)itemView.findViewById(R.id.edit_note_button);
+            _author = (TextView) itemView.findViewById(R.id.note_author);
+            _date = (TextView) itemView.findViewById(R.id.note_date);
+            _body = (TextView) itemView.findViewById(R.id.note_body);
+            _editTextView = (TextView) itemView.findViewById(R.id.edit_note_button);
         }
     }
 
@@ -612,11 +615,11 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             User group = null;
             String groupId = note.getGroupid();
             String userId = note.getUserid();
-            if ( groupId != null && !groupId.equals(userId) ) {
+            if (groupId != null && !groupId.equals(userId)) {
                 group = _realm.where(User.class).equalTo("userid", groupId).findFirst();
             }
 
-            if ( group != null ) {
+            if (group != null) {
                 notesViewHolder._author.setText(note.getAuthorFullName() + " to " + MiscUtils.getPrintableNameForUser(group));
             } else {
                 notesViewHolder._author.setText(note.getAuthorFullName());
@@ -625,10 +628,10 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
             notesViewHolder._date.setText(_cardDateFormat.format(note.getTimestamp()));
 
             int colorId = (i % 2 == 0) ? R.color.card_bg_even : R.color.card_bg_odd;
-            CardView cardView = (CardView)notesViewHolder.itemView;
+            CardView cardView = (CardView) notesViewHolder.itemView;
             cardView.setCardBackgroundColor(notesViewHolder.itemView.getContext().getResources().getColor(colorId));
 
-            if ( note.getUserid().equals(_apiClient.getUser().getUserid())) {
+            if (note.getUserid().equals(_apiClient.getUser().getUserid())) {
                 notesViewHolder._editTextView.setVisibility(View.VISIBLE);
                 notesViewHolder._editTextView.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -662,7 +665,7 @@ public class MainActivity extends AppCompatActivity implements RealmChangeListen
     @Override
     public void onChange() {
         // Realm dataset has changed. Refresh our data
-        if ( _recyclerView.getAdapter() != null ) {
+        if (_recyclerView.getAdapter() != null) {
             _recyclerView.getAdapter().notifyDataSetChanged();
         }
     }

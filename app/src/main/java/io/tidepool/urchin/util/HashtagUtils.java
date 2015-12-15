@@ -27,9 +27,9 @@ public class HashtagUtils {
     public static List<Hashtag> parseHashtags(String message) {
         List<Hashtag> tags = new ArrayList<>();
         String[] words = message.split("\\s+");
-        for ( String word : words ) {
+        for (String word : words) {
             // Tag words that start with a # and have >1 character
-            if ( word.startsWith("#") && word.trim().length() > 1 ) {
+            if (word.startsWith("#") && word.trim().length() > 1) {
                 tags.add(new Hashtag(word));
             }
         }
@@ -38,35 +38,36 @@ public class HashtagUtils {
 
     /**
      * Formats the hashtags in a SpannableString with the given color, and bold if specified.
-     * @param text SpannableString with the text to format hashtags in
+     *
+     * @param text  SpannableString with the text to format hashtags in
      * @param color Color to color the hashtags
-     * @param bold Set to true to make the hashtags bold
+     * @param bold  Set to true to make the hashtags bold
      */
     public static void formatHashtags(SpannableString text, int color, boolean bold) {
         int startSpan = -1;
-        for ( int i = 0; i < text.length(); i++ ) {
+        for (int i = 0; i < text.length(); i++) {
             Character c = text.charAt(i);
-            if ( startSpan == -1 ) {
+            if (startSpan == -1) {
                 // We're looking for a hashtag
-                if ( c.equals('#') ) {
+                if (c.equals('#')) {
                     startSpan = i;
                 }
             } else {
                 // We're looking for whitespace
-                if ( Character.isWhitespace(c) ) {
+                if (Character.isWhitespace(c)) {
                     // Found it. Add the span.
                     text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    if ( bold ) {
+                    if (bold) {
                         text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     startSpan = -1;
                 }
             }
         }
-        if ( startSpan != -1 ) {
+        if (startSpan != -1) {
             // Hashtag was last
             text.setSpan(new ForegroundColorSpan(color), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            if ( bold ) {
+            if (bold) {
                 text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }

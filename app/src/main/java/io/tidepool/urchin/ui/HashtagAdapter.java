@@ -37,7 +37,7 @@ public class HashtagAdapter extends RecyclerView.Adapter<HashtagAdapter.HashtagV
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if ( _listener != null ) {
+                if (_listener != null) {
                     _listener.tagTapped(tagText);
                 }
             }
@@ -58,7 +58,7 @@ public class HashtagAdapter extends RecyclerView.Adapter<HashtagAdapter.HashtagV
 
         public HashtagViewHolder(View v) {
             super(v);
-            textView = (TextView)v.findViewById(R.id.hashtag_textview);
+            textView = (TextView) v.findViewById(R.id.hashtag_textview);
         }
     }
 }

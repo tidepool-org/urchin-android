@@ -14,7 +14,9 @@ import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
+
 import io.tidepool.urchin.util.Log;
+
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -91,11 +93,11 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         setContentView(R.layout.activity_new_note);
 
-        _noteEditText = (EditText)findViewById(R.id.note_edit_text);
-        _dateTimeTextView = (TextView)findViewById(R.id.date_time);
-        _hashtagView = (RecyclerView)findViewById(R.id.hashtag_recyclerview);
-        _dropDownLayout = (LinearLayout)findViewById(R.id.layout_drop_down);
-        _dropDownListView = (ListView)findViewById(R.id.listview_filter);
+        _noteEditText = (EditText) findViewById(R.id.note_edit_text);
+        _dateTimeTextView = (TextView) findViewById(R.id.date_time);
+        _hashtagView = (RecyclerView) findViewById(R.id.hashtag_recyclerview);
+        _dropDownLayout = (LinearLayout) findViewById(R.id.layout_drop_down);
+        _dropDownListView = (ListView) findViewById(R.id.listview_filter);
 
         _dropDownLayout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -160,13 +162,13 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         _realm.addChangeListener(this);
 
         CurrentUser currentUser = _realm.where(CurrentUser.class).findFirst();
-        if ( currentUser != null ) {
+        if (currentUser != null) {
             setCurrentUser(currentUser.getCurrentUser());
         } else {
             // Find a user that has a profile
             RealmResults<User> users = _realm.where(User.class).findAllSorted("fullName");
-            for ( User user : users ) {
-                if ( user.getProfile() != null && user.getProfile().getPatient() != null ) {
+            for (User user : users) {
+                if (user.getProfile() != null && user.getProfile().getPatient() != null) {
                     setCurrentUser(user);
                     break;
                 }
@@ -175,7 +177,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         // See if we were launched to create a new note, or to edit an existing one
         Bundle args = getIntent().getExtras();
-        if ( args != null ) {
+        if (args != null) {
             String messageId = args.getString(ARG_EDIT_NOTE_ID);
             if (messageId != null) {
                 setEditing(messageId);
@@ -205,7 +207,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     private void setCurrentUser(User user) {
         _currentUser = user;
-        if ( user != null ) {
+        if (user != null) {
             setTitle(MiscUtils.getPrintableNameForUser(_currentUser));
             _realm.beginTransaction();
             RealmResults<CurrentUser> results = _realm.where(CurrentUser.class).findAll();
@@ -240,7 +242,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     private void postOrUpdate() {
         Log.d(LOG_TAG, "POST");
 
-        if ( !wasEdited() ) {
+        if (!wasEdited()) {
             // Treat like a back button
             onBackPressed();
             return;
@@ -258,7 +260,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         note.setMessagetext(_noteEditText.getText().toString());
         note.setTimestamp(_noteTime);
 
-        if ( _editingNote == null ) {
+        if (_editingNote == null) {
             // We are creating a new note
             note.setGroupid(_currentUser.getUserid());
             note.setUserid(api.getUser().getUserid());
@@ -326,10 +328,10 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public void onBackPressed() {
         // Let the back button dismiss the drop-down menu if present
-        if ( _dropDownLayout.getVisibility() == View.VISIBLE ) {
+        if (_dropDownLayout.getVisibility() == View.VISIBLE) {
             showDropDownMenu(false);
         } else {
-            if ( wasEdited() ) {
+            if (wasEdited()) {
                 confirmExit();
             } else {
                 super.onBackPressed();
@@ -347,7 +349,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         DialogInterface.OnClickListener okListener;
         DialogInterface.OnClickListener cancelListener;
 
-        if ( editing ) {
+        if (editing) {
             okListener = new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -385,17 +387,17 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     }
 
     private boolean wasEdited() {
-        if ( _editingNote == null ) {
+        if (_editingNote == null) {
             return _noteEditText.getText().length() > 0;
         }
 
         // We are editing a note. Return true if the text or date has changed
         return !(_noteEditText.getText().toString().equals(_editingNote.getMessagetext()) &&
-                 _noteTime.equals(_editingNote.getTimestamp()));
+                _noteTime.equals(_editingNote.getTimestamp()));
     }
 
     private void showDropDownMenu(boolean show) {
-        if ( show ) {
+        if (show) {
             setTitle(R.string.note_for);
             _dropDownLayout.setTranslationY(-_dropDownLayout.getHeight());
             _dropDownLayout.requestLayout();
@@ -458,7 +460,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         // No menu for us.
         MenuInflater inflater = getMenuInflater();
-        if ( _editingNote == null ) {
+        if (_editingNote == null) {
             inflater.inflate(R.menu.menu_new_note, menu);
         } else {
             inflater.inflate(R.menu.menu_edit_note, menu);
@@ -469,8 +471,8 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if ( id == R.id.action_filter_notes ) {
-            if ( _dropDownLayout.getVisibility() == View.INVISIBLE ) {
+        if (id == R.id.action_filter_notes) {
+            if (_dropDownLayout.getVisibility() == View.INVISIBLE) {
                 populateDropDownList();
                 showDropDownMenu(true);
             } else {
@@ -479,7 +481,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             return true;
         }
 
-        if ( id == R.id.action_delete_note ) {
+        if (id == R.id.action_delete_note) {
             Log.d(LOG_TAG, "Delete Note");
             new AlertDialog.Builder(this)
                     .setTitle(R.string.action_delete_note)
@@ -496,7 +498,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
             return true;
         }
 
-        if ( id == R.id.action_save_note ) {
+        if (id == R.id.action_save_note) {
             postOrUpdate();
             return true;
         }
@@ -513,7 +515,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
-        switch(item.getItemId()) {
+        switch (item.getItemId()) {
             case R.id.action_change_date:
                 changeDate();
                 break;
@@ -568,15 +570,15 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         final Calendar cal = Calendar.getInstance();
         cal.setTime(_noteTime);
 
-       new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
-           @Override
-           public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-               cal.set(Calendar.HOUR_OF_DAY, hourOfDay);
-               cal.set(Calendar.MINUTE, minute);
-               _noteTime = cal.getTime();
-               setDateTimeText(_noteTime);
-           }
-       }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), false).show();
+        new TimePickerDialog(this, new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                cal.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                cal.set(Calendar.MINUTE, minute);
+                _noteTime = cal.getTime();
+                setDateTimeText(_noteTime);
+            }
+        }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), false).show();
     }
 
     private void setupHashtags() {
@@ -585,7 +587,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
         // Get the tags from the database
         RealmResults<Hashtag> allTags = _realm.where(Hashtag.class).findAllSorted("tag");
         Set<String> uniqueTags = new HashSet<>();
-        for ( Hashtag tag : allTags ) {
+        for (Hashtag tag : allTags) {
             uniqueTags.add(tag.getTag());
         }
 
@@ -596,7 +598,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         // Get the counts of each of the hashtags
         final Map<String, Long> tagCounts = new HashMap<>();
-        for ( String tag : uniqueTags ) {
+        for (String tag : uniqueTags) {
             tagCounts.put(tag, _realm.where(Hashtag.class).equalTo("tag", tag).count());
             // Log.d(LOG_TAG, "Tag: " + tag + " Count: " + tagCounts.get(tag));
         }
@@ -619,18 +621,18 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         // Create the list of hashtags for the adapter in the same order as sortedTags
         List<Hashtag> hashtagList = new ArrayList<>();
-        for ( String tagName : sortedTags ) {
+        for (String tagName : sortedTags) {
             RealmResults<Hashtag> results = _realm.where(Hashtag.class).equalTo("tag", tagName).findAll();
             Hashtag tag = null;
-            if ( results.size() > 0 ) {
+            if (results.size() > 0) {
                 tag = results.first();
             }
-            if ( tag == null ) {
+            if (tag == null) {
                 // Probably one of our default tags- they're not in the database.
                 tag = new Hashtag(tagName);
             }
             hashtagList.add(tag);
-            if ( hashtagList.size() >= MAX_TAGS ) {
+            if (hashtagList.size() >= MAX_TAGS) {
                 break;
             }
         }
@@ -651,7 +653,7 @@ public class NewNoteActivity extends AppCompatActivity implements RealmChangeLis
 
         // Find out if there is a space behind the insertion point, and add one if not
         Editable text = _noteEditText.getText();
-        if ( end > 0 && !Character.isWhitespace(text.charAt(end - 1)) ) {
+        if (end > 0 && !Character.isWhitespace(text.charAt(end - 1))) {
             tag = " " + tag;
         }
 

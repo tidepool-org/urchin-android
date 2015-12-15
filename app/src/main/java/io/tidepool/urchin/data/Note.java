@@ -15,7 +15,8 @@ public class Note extends RealmObject {
     private Date createdtime;
     private String groupid;
     private String guid;
-    @PrimaryKey private String id;
+    @PrimaryKey
+    private String id;
     private String messagetext;
     private String parentmessage;
     private Date timestamp;

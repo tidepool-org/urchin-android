@@ -2,6 +2,7 @@ package io.tidepool.urchin.api;
 
 import android.content.Context;
 import android.util.Base64;
+
 import io.tidepool.urchin.util.Log;
 
 import com.android.volley.AuthFailureError;
@@ -17,6 +18,7 @@ import com.android.volley.toolbox.DiskBasedCache;
 import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.StringRequest;
+
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
@@ -115,13 +117,13 @@ public class APIClient {
      * Constructor
      *
      * @param context Context
-     * @param server Server to connect to, one of Production, Development or Staging
+     * @param server  Server to connect to, one of Production, Development or Staging
      */
     public APIClient(Context context, String server) {
         setServer(server);
 
         // Set up the disk cache for caching responses
-        Cache cache = new DiskBasedCache(context.getCacheDir(), 1024*1024);
+        Cache cache = new DiskBasedCache(context.getCacheDir(), 1024 * 1024);
 
         // Set up the HTTPURLConnection network stack
         Network network = new BasicNetwork(new HurlStack());
@@ -134,15 +136,16 @@ public class APIClient {
     /**
      * Sets the server the API client will connect to. Valid servers are:
      * <ul>
-     *     <li>Production</li>
-     *     <li>Development</li>
-     *     <li>Staging</li>
+     * <li>Production</li>
+     * <li>Development</li>
+     * <li>Staging</li>
      * </ul>
+     *
      * @param serverType String with one of the above values used to set the server
      */
     public void setServer(String serverType) {
         URL url = __servers.get(serverType);
-        if ( url == null ) {
+        if (url == null) {
             Log.e(LOG_TAG, "No server called " + serverType + " found in map");
         } else {
             _baseURL = url;
@@ -151,6 +154,7 @@ public class APIClient {
 
     /**
      * Returns the current user. Only valid if authenticated.
+     *
      * @return the current user
      */
     public User getUser() {
@@ -172,6 +176,7 @@ public class APIClient {
 
     /**
      * Returns the session ID used for this client.
+     *
      * @return the session ID, or null if not authenticated
      */
     public String getSessionId() {
@@ -198,7 +203,7 @@ public class APIClient {
          * from the headers returned in the sign-in request, and use it in all subsequent
          * requests.
          *
-         * @param user User object, if the sign-in was successful
+         * @param user      User object, if the sign-in was successful
          * @param exception Exception if the sign-in was not successful
          */
         public abstract void signInComplete(User user, Exception exception);
@@ -251,7 +256,7 @@ public class APIClient {
                 Realm realm = Realm.getDefaultInstance();
                 try {
                     RealmResults<Session> sessions = realm.where(Session.class).findAll();
-                    if ( sessions.size() == 0 ) {
+                    if (sessions.size() == 0) {
                         // No session ID found
                         listener.signInComplete(null, new Exception("No session ID returned in headers"));
                         return;
@@ -283,7 +288,7 @@ public class APIClient {
             @Override
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
-                if ( sessionId != null ) {
+                if (sessionId != null) {
                     Realm realm = Realm.getDefaultInstance();
                     try {
                         realm.beginTransaction();
@@ -321,11 +326,12 @@ public class APIClient {
     public abstract static class RefreshTokenListener {
         public abstract void tokenRefreshed(Exception error);
     }
+
     public Request refreshToken(final RefreshTokenListener listener) {
         Log.d(LOG_TAG, "refreshToken");
 
         String sessionId = getSessionId();
-        if ( sessionId == null ) {
+        if (sessionId == null) {
             listener.tokenRefreshed(new Exception("No token to refresh"));
             return null;
         }
@@ -353,7 +359,7 @@ public class APIClient {
             @Override
             protected Response<String> parseNetworkResponse(NetworkResponse response) {
                 String sessionId = response.headers.get(HEADER_SESSION_ID);
-                if ( sessionId != null ) {
+                if (sessionId != null) {
                     Realm realm = Realm.getDefaultInstance();
                     try {
                         realm.beginTransaction();
@@ -387,6 +393,7 @@ public class APIClient {
     public abstract static class SignOutListener {
         public abstract void signedOut(int responseCode, Exception error);
     }
+
     public Request signOut(final SignOutListener listener) {
         // Get the headers before we get rid of the session, or we won't have a session ID!
         final Map<String, String> headers = getHeaders();
@@ -431,6 +438,7 @@ public class APIClient {
     public static abstract class PostNoteListener {
         public abstract void notePosted(Note note, Exception error);
     }
+
     public Request postNote(final Note note, final PostNoteListener listener) {
         // Build the URL
         String url = null;
@@ -468,7 +476,7 @@ public class APIClient {
 
                     // Update the hashtags for this note.
                     List<Hashtag> hashtags = HashtagUtils.parseHashtags(sentNote.getMessagetext());
-                    for ( Hashtag hash : hashtags ) {
+                    for (Hashtag hash : hashtags) {
                         hash.setOwnerId(sentNote.getUserid());
                         sentNote.getHashtags().add(hash);
                     }
@@ -511,6 +519,7 @@ public class APIClient {
     public static abstract class UpdateNoteListener {
         public abstract void noteUpdated(Note note, Exception error);
     }
+
     public Request updateNote(final Note note, final UpdateNoteListener listener) {
         // Build the URL
         String url = null;
@@ -572,6 +581,7 @@ public class APIClient {
     public static abstract class DeleteNoteListener {
         public abstract void noteDeleted(Exception error);
     }
+
     public Request deleteNote(Note note, final DeleteNoteListener listener) {
         String url = null;
         try {
@@ -644,8 +654,10 @@ public class APIClient {
     public static Gson getGson(String dateFormat) {
         // Make a custom Gson instance, with a custom TypeAdapter for each wrapper object.
         // In this instance we only have RealmList<RealmString> as a a wrapper for RealmList<String>
-        Type emailToken = new TypeToken<RealmList<EmailAddress>>(){}.getType();
-        Type sharedIdToken = new TypeToken<RealmList<SharedUserId>>(){}.getType();
+        Type emailToken = new TypeToken<RealmList<EmailAddress>>() {
+        }.getType();
+        Type sharedIdToken = new TypeToken<RealmList<SharedUserId>>() {
+        }.getType();
         Gson gson = new GsonBuilder()
                 .setExclusionStrategies(new ExclusionStrategy() {
                     @Override
@@ -703,6 +715,7 @@ public class APIClient {
     public static abstract class ViewableUserIdsListener {
         public abstract void fetchComplete(RealmList<SharedUserId> userIds, Exception error);
     }
+
     public Request getViewableUserIds(final ViewableUserIdsListener listener) {
         StringRequest req = null;
 
@@ -741,8 +754,8 @@ public class APIClient {
                         // Out with the old
                         realm.where(SharedUserId.class).findAll().clear();
 
-                        while ( iter.hasNext() ) {
-                            String viewableId = (String)iter.next();
+                        while (iter.hasNext()) {
+                            String viewableId = (String) iter.next();
                             userIds.add(new SharedUserId(viewableId));
                         }
 
@@ -788,7 +801,7 @@ public class APIClient {
         try {
             url = new URL(getBaseURL(), "/metadata/" + userId + "/profile").toString();
         } catch (MalformedURLException e) {
-            if ( listener != null ) {
+            if (listener != null) {
                 listener.profileReceived(null, e);
             }
             return null;
@@ -808,13 +821,13 @@ public class APIClient {
                     Profile profile = realm.copyToRealmOrUpdate(fakeProfile);
                     // Create a user with this profile and add / update it
                     User user = realm.where(User.class).equalTo("userid", userId).findFirst();
-                    if ( user == null ) {
+                    if (user == null) {
                         user = realm.createObject(User.class);
                         user.setUserid(userId);
                     }
                     user.setProfile(profile);
                     realm.commitTransaction();
-                    if ( listener != null ) {
+                    if (listener != null) {
                         listener.profileReceived(profile, null);
                     }
 
@@ -826,7 +839,7 @@ public class APIClient {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(LOG_TAG, "Profile error: " + error);
-                if ( listener != null ) {
+                if (listener != null) {
                     listener.profileReceived(null, error);
                 }
             }
@@ -844,6 +857,7 @@ public class APIClient {
     public static abstract class NotesListener {
         public abstract void notesReceived(RealmList<Note> notes, Exception error);
     }
+
     public Request getNotes(final String userId, final Date fromDate, final Date toDate, final NotesListener listener) {
         String url = null;
         try {
@@ -892,7 +906,7 @@ public class APIClient {
                         JSONObject obj = new JSONObject(json);
                         JSONArray messages = obj.getJSONArray("messages");
 
-                        for ( int i = 0; i < messages.length(); i++ ) {
+                        for (int i = 0; i < messages.length(); i++) {
                             String msgJson = messages.getString(i);
 
                             Note note = gson.fromJson(msgJson, Note.class);
@@ -907,7 +921,7 @@ public class APIClient {
                             // Update the hashtags for this note.
                             note.getHashtags().clear();
                             List<Hashtag> hashtags = HashtagUtils.parseHashtags(note.getMessagetext());
-                            for ( Hashtag hash : hashtags ) {
+                            for (Hashtag hash : hashtags) {
                                 hash.setOwnerId(userId);
                                 note.getHashtags().add(hash);
                             }
@@ -915,14 +929,14 @@ public class APIClient {
                             // See if we're missing any users that are mentioned in the note
                             // Check the note author (userid)
                             RealmResults userSearch = realm.where(User.class).equalTo("userid", note.getUserid()).findAll();
-                            if ( userSearch.size() == 0 ) {
+                            if (userSearch.size() == 0) {
                                 Log.d(LOG_TAG, "Getting profile for user: " + note.getUserid());
                                 getProfileForUserId(note.getUserid(), null);
                             }
 
                             // Also check the group (groupid)
                             userSearch = realm.where(User.class).equalTo("userid", note.getGroupid()).findAll();
-                            if ( userSearch.size() == 0 ) {
+                            if (userSearch.size() == 0) {
                                 Log.d(LOG_TAG, "Getting profile for group: " + note.getGroupid());
                                 getProfileForUserId(note.getGroupid(), null);
                             }
@@ -974,7 +988,7 @@ public class APIClient {
     protected Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<>();
         String sessionId = getSessionId();
-        if ( sessionId != null ) {
+        if (sessionId != null) {
             headers.put(HEADER_SESSION_ID, sessionId);
         }
 

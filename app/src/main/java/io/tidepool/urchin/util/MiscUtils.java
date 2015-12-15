@@ -21,7 +21,7 @@ import io.tidepool.urchin.data.User;
 public class MiscUtils {
     public static String getPrintableNameForUser(User user) {
         String name = null;
-        if ( user != null ) {
+        if (user != null) {
             Profile profile = user.getProfile();
             if (profile != null) {
                 name = profile.getFullName();
@@ -35,12 +35,12 @@ public class MiscUtils {
                     name = user.getUsername();
                 }
             }
-            if ( TextUtils.isEmpty(name) ) {
+            if (TextUtils.isEmpty(name)) {
                 name = "[" + user.getUserid() + "]";
             }
         }
 
-        if ( TextUtils.isEmpty(name) ) {
+        if (TextUtils.isEmpty(name)) {
             name = "UNKNOWN";
         }
 
@@ -61,6 +61,7 @@ public class MiscUtils {
     }
 
     static DateFormat _jsonDateFormat = new SimpleDateFormat(APIClient.MESSAGE_DATE_FORMAT, Locale.US);
+
     public static String dateToJSONString(Date date) {
         return _jsonDateFormat.format(date);
     }

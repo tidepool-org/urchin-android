@@ -34,9 +34,10 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
     /**
      * List adapter for showing the list of users.
-     * @param context Context, we always need one
-     * @param resource Resource ID of the elements in the list
-     * @param objects List of objects we will be presenting
+     *
+     * @param context   Context, we always need one
+     * @param resource  Resource ID of the elements in the list
+     * @param objects   List of objects we will be presenting
      * @param addExtras Set to true to add "All Users" and "Sign Out" to the list (for main view)
      */
     public UserFilterAdapter(Context context, int resource, List<User> objects, boolean addExtras) {
@@ -46,6 +47,7 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
     /**
      * Helper method to create the list of valid users for both the main view and "add note" view
+     *
      * @return a list of User objects to be passed to this adapter's constructor
      */
     public static List<User> createUserList() {
@@ -62,9 +64,9 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
             // Create a set of users from this list that have patient fields in their profiles
             users = new ArrayList<>();
-            for ( SharedUserId sharedUserId : sharedUserIds ) {
+            for (SharedUserId sharedUserId : sharedUserIds) {
                 User user = realm.where(User.class).equalTo("userid", sharedUserId.getVal()).findFirst();
-                if ( user != null && user.getProfile() != null && user.getProfile().getPatient() != null ) {
+                if (user != null && user.getProfile() != null && user.getProfile().getPatient() != null) {
                     // Copy from realm since callers don't necessarily have a reference count for the realm
                     // guaranteeing the liftime of this object.
                     // user = realm.copyFromRealm(user); // TODO: my - 0 - revisit this
@@ -95,7 +97,7 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
 
     @Override
     public User getItem(int index) {
-        if ( _addExtras ) {
+        if (_addExtras) {
             if (index == 0) {
                 User user = new User();
                 user.setUserid(TAG_ALL_USERS);
@@ -119,22 +121,22 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         View v = convertView;
-        if ( v == null ) {
+        if (v == null) {
             v = LayoutInflater.from(getContext()).inflate(R.layout.list_item_user, parent, false);
         }
 
         User user = getItem(position);
-        TextView nameText = (TextView)v.findViewById(R.id.name_textview);
+        TextView nameText = (TextView) v.findViewById(R.id.name_textview);
         String name = user.getFullName();
-        if (TextUtils.isEmpty(name)){
-            if ( user.getProfile() != null ) {
+        if (TextUtils.isEmpty(name)) {
+            if (user.getProfile() != null) {
                 name = user.getProfile().getFullName();
             }
         }
         nameText.setText(name);
 
         View indent = v.findViewById(R.id.indent);
-        if ( user.getUserid().equals(TAG_ALL_USERS) || user.getUserid().equals(TAG_SIGNOUT) ) {
+        if (user.getUserid().equals(TAG_ALL_USERS) || user.getUserid().equals(TAG_SIGNOUT)) {
             indent.setVisibility(View.GONE);
             nameText.setTypeface(null, Typeface.BOLD);
         } else {
@@ -143,11 +145,11 @@ public class UserFilterAdapter extends ArrayAdapter<User> {
         }
 
         float userListHeight = v.getContext().getResources().getDimension(R.dimen.user_list_height);
-        if ( user.getUserid().equals(TAG_SIGNOUT) ) {
+        if (user.getUserid().equals(TAG_SIGNOUT)) {
             // We need to make this layout a bit taller to add space before the "Logout" text
-            v.setMinimumHeight((int)userListHeight * 2);
+            v.setMinimumHeight((int) userListHeight * 2);
         } else {
-            v.setMinimumHeight((int)userListHeight);
+            v.setMinimumHeight((int) userListHeight);
         }
 
         return v;

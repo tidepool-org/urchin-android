@@ -51,12 +51,19 @@ public class User extends RealmObject {
         this.fullName = fullName;
     }
 
-    public RealmList<SharedUserId>getViewableUserIds() {
+    public RealmList<SharedUserId> getViewableUserIds() {
         return viewableUserIds;
     }
+
     public void setViewableUserIds(RealmList<SharedUserId> ids) {
         viewableUserIds = ids;
     }
-    public Profile getProfile() { return profile;}
-    public void setProfile(Profile profile) { this.profile = profile; }
+
+    public Profile getProfile() {
+        return profile;
+    }
+
+    public void setProfile(Profile profile) {
+        this.profile = profile;
+    }
 }

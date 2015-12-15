@@ -8,8 +8,13 @@ import io.realm.RealmObject;
 public class SharedUserId extends RealmObject {
     private String val;
 
-    public SharedUserId() {}
-    public SharedUserId(String val) { this.val = val; }
+    public SharedUserId() {
+    }
+
+    public SharedUserId(String val) {
+        this.val = val;
+    }
+
     public String getVal() {
         return val;
     }

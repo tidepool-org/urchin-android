@@ -9,11 +9,17 @@ public class EmailAddress extends RealmObject {
     private String val;
     private String ownerId;
 
-    public EmailAddress() {}
-    public EmailAddress(String val) { this.val = val; }
+    public EmailAddress() {
+    }
+
+    public EmailAddress(String val) {
+        this.val = val;
+    }
+
     public String getVal() {
         return val;
     }
+
     public void setVal(String val) {
         this.val = val;
     }

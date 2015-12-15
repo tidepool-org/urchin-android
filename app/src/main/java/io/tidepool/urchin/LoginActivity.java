@@ -89,7 +89,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             }
         });
 
-        mRememberMeCheckBox = (CheckBox)findViewById(R.id.login_remember_me);
+        mRememberMeCheckBox = (CheckBox) findViewById(R.id.login_remember_me);
 
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
@@ -102,14 +102,14 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
 
-        if ( email.length() > 0 ) {
+        if (email.length() > 0) {
             mPasswordView.requestFocus();
             mRememberMeCheckBox.setChecked(true);
         }
 
         registerForContextMenu(findViewById(R.id.tidepool_logo));
 
-        TextView version = (TextView)findViewById(R.id.version_textview);
+        TextView version = (TextView) findViewById(R.id.version_textview);
         version.setText(MiscUtils.getAppInfoString(this));
     }
 
@@ -122,7 +122,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
-        switch ( item.getItemId() ) {
+        switch (item.getItemId()) {
             case R.id.server_development:
                 MainActivity.getInstance().setSelectedServer(APIClient.DEVELOPMENT);
                 break;
@@ -140,13 +140,13 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
         }
 
         // Update the UI to show the new server
-        TextView version = (TextView)findViewById(R.id.version_textview);
+        TextView version = (TextView) findViewById(R.id.version_textview);
         version.setText(MiscUtils.getAppInfoString(this));
         return true;
     }
 
     private void populateAutoComplete() {
-        if ( mCanReadContacts ) {
+        if (mCanReadContacts) {
             getLoaderManager().initLoader(0, null, this);
         }
     }
@@ -168,7 +168,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
 
         // Save the email if "remember me" is checked
         SharedPreferences.Editor editor = getPreferences(Context.MODE_PRIVATE).edit();
-        if ( mRememberMeCheckBox.isChecked() ) {
+        if (mRememberMeCheckBox.isChecked()) {
             editor.putString(BUNDLE_REMEMBER_ME, email);
         } else {
             editor.remove(BUNDLE_REMEMBER_ME);
@@ -208,10 +208,10 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor> {
             client.signIn(email, password, new APIClient.SignInListener() {
                 @Override
                 public void signInComplete(User user, Exception exception) {
-                    if ( exception != null ) {
+                    if (exception != null) {
                         showProgress(false);
                         String message;
-                        if ( exception.getClass().equals(com.android.volley.AuthFailureError.class) ) {
+                        if (exception.getClass().equals(com.android.volley.AuthFailureError.class)) {
                             message = getString(R.string.bad_login);
                         } else {
                             message = getString(R.string.error_unknown);
