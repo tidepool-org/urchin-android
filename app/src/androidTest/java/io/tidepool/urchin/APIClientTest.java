@@ -1,6 +1,8 @@
 package io.tidepool.urchin;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.ServerError;
 
 import android.app.Instrumentation;
 import android.content.Context;
@@ -15,6 +17,7 @@ import static com.jayway.awaitility.Awaitility.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.runner.RunWith;
 import org.junit.runners.MethodSorters;
 import org.junit.After;
@@ -35,9 +38,12 @@ import java.util.regex.Pattern;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
+import io.realm.RealmList;
 import io.tidepool.urchin.api.APIClient;
 import io.tidepool.urchin.data.Note;
+import io.tidepool.urchin.data.Profile;
 import io.tidepool.urchin.data.Session;
+import io.tidepool.urchin.data.SharedUserId;
 import io.tidepool.urchin.data.User;
 import io.tidepool.urchin.util.HashtagUtils;
 import io.tidepool.urchin.util.Log;
@@ -143,7 +149,6 @@ public class APIClientTest extends AndroidTestCase {
     public void testRefreshToken() throws AssertionError {
         testSignInSuccess();
 
-        String sessionId = mAPIClient.getSessionId();
         mAwaitDone = new AtomicBoolean(false);
         mAPIClient.refreshToken(new APIClient.RefreshTokenListener() {
             @Override
@@ -155,10 +160,134 @@ public class APIClientTest extends AndroidTestCase {
         });
         await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
 
-        sessionId = mAPIClient.getSessionId();
+        String sessionId = mAPIClient.getSessionId();
         Exception error = (Exception) mAWaitHashMap.get("error");
         assertThat(sessionId, notNullValue());
         assertThat(error, nullValue());
+    }
+
+    @Test
+    public void testGetProfile() {
+        testSignInSuccess();
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            mAwaitDone = new AtomicBoolean(false);
+            mAPIClient.getProfileForUserId(mAPIClient.getUser().getUserid(), new APIClient.ProfileListener() {
+                @Override
+                public void profileReceived(Profile profile, Exception error) {
+                    mAWaitHashMap = new HashMap<String, Object>();
+                    mAWaitHashMap.put("profile", profile);
+                    mAWaitHashMap.put("error", error);
+                    mAwaitDone.set(true);
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+            Profile profile = (Profile) mAWaitHashMap.get("profile");
+            Exception error = (Exception) mAWaitHashMap.get("error");
+            assertThat(profile, notNullValue());
+            assertThat(error, nullValue());
+        } finally {
+            realm.close();
+        }
+    }
+
+    @Test
+    public void testGetViewableUsers() {
+        testSignInSuccess();
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            mAwaitDone = new AtomicBoolean(false);
+            mAPIClient.getViewableUserIds(new APIClient.ViewableUserIdsListener() {
+                @Override
+                public void fetchComplete(RealmList<SharedUserId> userIds, Exception error) {
+                    mAWaitHashMap = new HashMap<String, Object>();
+                    mAWaitHashMap.put("userIds", userIds);
+                    mAWaitHashMap.put("error", error);
+                    mAwaitDone.set(true);
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+            RealmList<SharedUserId> userIds = (RealmList<SharedUserId>) mAWaitHashMap.get("userIds");
+            Exception error = (Exception) mAWaitHashMap.get("error");
+            assertThat(userIds, notNullValue());
+            assertThat(error, nullValue());
+        } finally {
+            realm.close();
+        }
+    }
+
+    @Test
+    public void testNoNotesBeforeEarlyTimePeriod() {
+        testSignInSuccess();
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            mAwaitDone = new AtomicBoolean(false);
+
+            Calendar from = Calendar.getInstance();
+            from.set(Calendar.YEAR, 1950);
+            from.set(Calendar.MONTH, Calendar.JANUARY);
+            from.set(Calendar.DATE, 1);
+            Calendar to = (Calendar) from.clone();
+            to.set(Calendar.MONTH, Calendar.APRIL);
+            mAPIClient.getNotes(mAPIClient.getUser().getUserid(), from.getTime(), to.getTime(), new APIClient.NotesListener() {
+                @Override
+                public void notesReceived(RealmList<Note> notes, Exception error) {
+                    mAWaitHashMap = new HashMap<String, Object>();
+                    mAWaitHashMap.put("notes", notes);
+                    mAWaitHashMap.put("error", error);
+                    mAwaitDone.set(true);
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+            RealmList<Note> notes = (RealmList<Note>) mAWaitHashMap.get("notes");
+            Exception error = (Exception) mAWaitHashMap.get("error");
+            assertThat(notes, nullValue());
+            assertThat(error, notNullValue());
+            assertThat(error, instanceOf(ServerError.class));
+            assertThat(((ServerError)error).networkResponse.statusCode, is(404));
+        } finally {
+            realm.close();
+        }
+    }
+
+    @Test
+    public void testGetNotes() {
+        testPostNote();
+
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            mAwaitDone = new AtomicBoolean(false);
+
+            final Date to = new Date();
+            Calendar c = Calendar.getInstance();
+            c.setTime(to);
+            c.add(Calendar.DATE, -1);
+            final Date from = c.getTime();
+            mAPIClient.getNotes(mAPIClient.getUser().getUserid(), from, to, new APIClient.NotesListener() {
+                @Override
+                public void notesReceived(RealmList<Note> notes, Exception error) {
+                    mAWaitHashMap = new HashMap<String, Object>();
+                    mAWaitHashMap.put("notes", notes);
+                    mAWaitHashMap.put("error", error);
+                    mAwaitDone.set(true);
+                }
+            });
+            await().atMost(10, TimeUnit.SECONDS).untilTrue(mAwaitDone);
+
+            RealmList<Note> notes = (RealmList<Note>) mAWaitHashMap.get("notes");
+            Exception error = (Exception) mAWaitHashMap.get("error");
+            assertThat(notes, notNullValue());
+            assertThat(notes.size(), greaterThan(0));
+            assertThat(error, nullValue());
+        } finally {
+            realm.close();
+        }
     }
 
     @Test
