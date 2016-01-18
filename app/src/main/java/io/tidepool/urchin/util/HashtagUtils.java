@@ -1,5 +1,7 @@
 package io.tidepool.urchin.util;
 
+import com.twitter.Extractor;
+
 import android.content.Context;
 import android.graphics.Typeface;
 import android.text.Spannable;
@@ -13,9 +15,6 @@ import java.util.List;
 import io.tidepool.urchin.R;
 import io.tidepool.urchin.data.Hashtag;
 
-/**
- * Created by Brian King on 8/31/15.
- */
 public class HashtagUtils {
     /**
      * Given a string, returns a list of Hashtags found in the string. The objects have not been
@@ -26,13 +25,13 @@ public class HashtagUtils {
      */
     public static List<Hashtag> parseHashtags(String message) {
         List<Hashtag> tags = new ArrayList<>();
-        String[] words = message.split("\\s+");
-        for (String word : words) {
-            // Tag words that start with a # and have >1 character
-            if (word.startsWith("#") && word.trim().length() > 1) {
-                tags.add(new Hashtag(word));
-            }
+
+        Extractor extractor = new Extractor();
+        List<String> extractedHashtags = extractor.extractHashtags(message);
+        for (String hashtag : extractedHashtags) {
+            tags.add(new Hashtag(hashtag));
         }
+
         return tags;
     }
 
@@ -44,31 +43,14 @@ public class HashtagUtils {
      * @param bold  Set to true to make the hashtags bold
      */
     public static void formatHashtags(SpannableString text, int color, boolean bold) {
-        int startSpan = -1;
-        for (int i = 0; i < text.length(); i++) {
-            Character c = text.charAt(i);
-            if (startSpan == -1) {
-                // We're looking for a hashtag
-                if (c.equals('#')) {
-                    startSpan = i;
-                }
-            } else {
-                // We're looking for whitespace
-                if (Character.isWhitespace(c)) {
-                    // Found it. Add the span.
-                    text.setSpan(new ForegroundColorSpan(color), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    if (bold) {
-                        text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, i, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    }
-                    startSpan = -1;
-                }
-            }
-        }
-        if (startSpan != -1) {
-            // Hashtag was last
-            text.setSpan(new ForegroundColorSpan(color), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        List<Hashtag> tags = new ArrayList<>();
+
+        Extractor extractor = new Extractor();
+        List<Extractor.Entity> extractedHashtagWithIndices = extractor.extractHashtagsWithIndices(text.toString());
+        for (Extractor.Entity entity : extractedHashtagWithIndices) {
+            text.setSpan(new ForegroundColorSpan(color), entity.getStart(), entity.getEnd(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             if (bold) {
-                text.setSpan(new StyleSpan(Typeface.BOLD), startSpan, text.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                text.setSpan(new StyleSpan(Typeface.BOLD), entity.getStart(), entity.getEnd(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
     }

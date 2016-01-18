@@ -41,21 +41,20 @@ public class HashtagUtilsTest {
         assertThat(spans.length, is(0));
     }
 
-    // TODO: my - Need to fix HashtagUtils per comment below and then re-enable this test. Log a Trello bug first.
-//    @Test
-//    public void testWithHashtags() {
-//        SpannableString text = new SpannableString("This #is text #that? does #contain! #hashtags. #hashtags are present.");
-//        HashtagUtils.formatHashtags(text, 0, true);
-//        StyleSpan[] spans = text.getSpans(0, text.length(), StyleSpan.class);
-//
-//        assertThat(spans.length, is(5));
-//
-//        testStyleSpan(text, spans[0], 5, 8, Typeface.BOLD);
-//        testStyleSpan(text, spans[1], 14, 19, Typeface.BOLD); // TODO: my - failing, need to fix formatter to stop on puncutation, not just whitespace
-//        testStyleSpan(text, spans[1], 26, 34, Typeface.BOLD);
-//        testStyleSpan(text, spans[1], 36, 45, Typeface.BOLD);
-//        testStyleSpan(text, spans[1], 47, 56, Typeface.BOLD);
-//    }
+    @Test
+    public void testWithHashtags() {
+        SpannableString text = new SpannableString("This #is text #that? does #contain! #hashtags. #hashtags are present.");
+        HashtagUtils.formatHashtags(text, 0, true);
+        StyleSpan[] spans = text.getSpans(0, text.length(), StyleSpan.class);
+
+        assertThat(spans.length, is(5));
+
+        testStyleSpan(text, spans[0], 5, 8, Typeface.BOLD);
+        testStyleSpan(text, spans[1], 14, 19, Typeface.BOLD);
+        testStyleSpan(text, spans[2], 26, 34, Typeface.BOLD);
+        testStyleSpan(text, spans[3], 36, 45, Typeface.BOLD);
+        testStyleSpan(text, spans[4], 47, 56, Typeface.BOLD);
+    }
 
     private void testStyleSpan(SpannableString spannableString, StyleSpan styleSpan, int start, int end, int typeface) {
         assertThat(styleSpan.getStyle(), is(typeface));
