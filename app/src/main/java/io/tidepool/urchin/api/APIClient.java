@@ -32,7 +32,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
@@ -49,7 +48,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import io.realm.Realm;
-import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.RealmResults;
@@ -74,10 +72,7 @@ public class APIClient {
     private static final String LOG_TAG = "APIClient";
 
     // Date format for most things,
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSZZZZZ";
-
-    // Date format for messages
-    public static final String MESSAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZZZZZ";
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZZZZZ";
 
     // Header label for the session token
     private static final String HEADER_SESSION_ID = "x-tidepool-session-token";
@@ -449,7 +444,7 @@ public class APIClient {
             return null;
         }
 
-        final String noteJson = getGson(MESSAGE_DATE_FORMAT).toJson(note);
+        final String noteJson = getGson(DEFAULT_DATE_FORMAT).toJson(note);
 
         StringRequest request = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
             @Override
@@ -901,7 +896,7 @@ public class APIClient {
                             .findAll().clear();
 
                     // Odd date format in the messages
-                    Gson gson = getGson(MESSAGE_DATE_FORMAT);
+                    Gson gson = getGson(DEFAULT_DATE_FORMAT);
                     try {
                         JSONObject obj = new JSONObject(json);
                         JSONArray messages = obj.getJSONArray("messages");

@@ -60,7 +60,7 @@ public class MiscUtils {
         return "v" + ver + " on " + MainActivity.getInstance().getSelectedServer();
     }
 
-    static DateFormat _jsonDateFormat = new SimpleDateFormat(APIClient.MESSAGE_DATE_FORMAT, Locale.US);
+    static DateFormat _jsonDateFormat = new SimpleDateFormat(APIClient.DEFAULT_DATE_FORMAT, Locale.US);
 
     public static String dateToJSONString(Date date) {
         return _jsonDateFormat.format(date);
