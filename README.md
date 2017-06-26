@@ -1,1 +1,1 @@
-[DEPRECATED] refer to https://github.com/tidepool-org/mobile-ios
+[DEPRECATED] refer to https://github.com/tidepool-org/mobile-android
